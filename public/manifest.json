@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "PromptBoard AI",
+  "version": "0.1.0",
+  "description": "Turn scripts into character, location, storyboard, and Seedance prompts.",
+  "permissions": ["storage", "sidePanel", "clipboardWrite", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://openrouter.ai/*",
+    "https://api.openai.com/*",
+    "https://ollama.com/*",
+    "http://localhost/*",
+    "https://chatgpt.com/*"
+  ],
+  "action": {
+    "default_title": "Open PromptBoard AI"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
