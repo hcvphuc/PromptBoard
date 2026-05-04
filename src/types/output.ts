@@ -1,4 +1,4 @@
-import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport } from './pipeline';
+import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage } from './pipeline';
 
 export interface ProjectOutput {
   analysis: AnalysisOutput;
@@ -8,6 +8,9 @@ export interface ProjectOutput {
   storyboards: StoryboardBoard[];
   seedance: SeedancePromptPerBoard[] | SeedancePromptContinuous;
   consistency: ConsistencyReport;
+  // Image generation results (populated after image gen run)
+  refImages?: ReferenceImage[];
+  boardImages?: BoardImage[];
 }
 
 export type OutputTab = 'analysis' | 'bible' | 'characters' | 'locations' | 'storyboards' | 'seedance' | 'export';

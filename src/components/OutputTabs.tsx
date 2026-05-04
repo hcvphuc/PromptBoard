@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProjectOutput } from '@/types/output';
 import type { OutputTab } from '@/types/output';
 import { OUTPUT_TABS } from '@/types/output';
-import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport } from '@/types/pipeline';
+import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage } from '@/types/pipeline';
 import { CopyButton } from './CopyButton';
 import { PromptCard } from './PromptCard';
 import { SendToChatGPTButton } from './SendToChatGPTButton';
@@ -13,9 +13,11 @@ import { exportJSON } from '@/export/json';
 interface OutputTabsProps {
   output: ProjectOutput;
   onRegenerateTab?: (tab: OutputTab) => void;
+  refImages?: ReferenceImage[];
+  boardImages?: BoardImage[];
 }
 
-export function OutputTabs({ output, onRegenerateTab }: OutputTabsProps) {
+export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [] }: OutputTabsProps) {
   const [activeTab, setActiveTab] = React.useState<OutputTab>('analysis');
 
   return (
@@ -41,9 +43,9 @@ export function OutputTabs({ output, onRegenerateTab }: OutputTabsProps) {
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {activeTab === 'analysis' && <AnalysisTab data={output.analysis} />}
         {activeTab === 'bible' && <ProductionBibleView bible={output.bible} />}
-        {activeTab === 'characters' && <CharactersTab data={output.characters} />}
-        {activeTab === 'locations' && <LocationsTab data={output.locations} />}
-        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} />}
+        {activeTab === 'characters' && <CharactersTab data={output.characters} refImages={refImages.filter(r => r.type === 'character')} />}
+        {activeTab === 'locations' && <LocationsTab data={output.locations} refImages={refImages.filter(r => r.type === 'location')} />}
+        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} />}
         {activeTab === 'seedance' && <SeedanceTab data={output.seedance} />}
         {activeTab === 'export' && <ExportTab output={output} />}
       </div>
@@ -91,7 +93,7 @@ function AnalysisTab({ data }: { data: AnalysisOutput }) {
   );
 }
 
-function CharactersTab({ data }: { data: CharacterPrompt[] }) {
+function CharactersTab({ data, refImages }: { data: CharacterPrompt[]; refImages: ReferenceImage[] }) {
   const allText = data.map(c => c.prompt).join('\n\n---\n\n');
   return (
     <div className="space-y-3">
@@ -99,19 +101,35 @@ function CharactersTab({ data }: { data: CharacterPrompt[] }) {
         <SendToChatGPTButton text={allText} />
         <CopyButton text={allText} label="Copy All" />
       </div>
-      {data.map((c, i) => (
-        <PromptCard
-          key={i}
-          title={c.character_name}
-          content={c.prompt}
-          showSendToChatGPT
-        />
-      ))}
+      {data.map((c, i) => {
+        const ref = refImages.find(r => r.name.toLowerCase() === c.character_name.toLowerCase());
+        return (
+          <div key={i} className="flex gap-2">
+            {ref && (
+              <div className="flex-shrink-0">
+                <img
+                  src={ref.imageDataUrl}
+                  alt={c.character_name}
+                  className="w-16 h-16 object-cover rounded border border-border"
+                  title={`Ref: ${c.character_name}`}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <PromptCard
+                title={c.character_name}
+                content={c.prompt}
+                showSendToChatGPT
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function LocationsTab({ data }: { data: LocationPrompt[] }) {
+function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: ReferenceImage[] }) {
   const allText = data.map(l => l.prompt).join('\n\n---\n\n');
   return (
     <div className="space-y-3">
@@ -119,19 +137,35 @@ function LocationsTab({ data }: { data: LocationPrompt[] }) {
         <SendToChatGPTButton text={allText} />
         <CopyButton text={allText} label="Copy All" />
       </div>
-      {data.map((l, i) => (
-        <PromptCard
-          key={i}
-          title={l.location_name}
-          content={l.prompt}
-          showSendToChatGPT
-        />
-      ))}
+      {data.map((l, i) => {
+        const ref = refImages.find(r => r.name.toLowerCase() === l.location_name.toLowerCase());
+        return (
+          <div key={i} className="flex gap-2">
+            {ref && (
+              <div className="flex-shrink-0">
+                <img
+                  src={ref.imageDataUrl}
+                  alt={l.location_name}
+                  className="w-16 h-16 object-cover rounded border border-border"
+                  title={`Ref: ${l.location_name}`}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <PromptCard
+                title={l.location_name}
+                content={l.prompt}
+                showSendToChatGPT
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function StoryboardsTab({ data }: { data: StoryboardBoard[] }) {
+function StoryboardsTab({ data, boardImages }: { data: StoryboardBoard[]; boardImages: BoardImage[] }) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -175,6 +209,19 @@ function StoryboardsTab({ data }: { data: StoryboardBoard[] }) {
             content={board.image_generation_prompt}
             showSendToChatGPT
           />
+          {(() => {
+            const boardImg = boardImages.find(b => b.boardNumber === board.board_number);
+            if (!boardImg) return null;
+            return (
+              <div className="mt-2">
+                <img
+                  src={boardImg.imageDataUrl}
+                  alt={`Board ${board.board_number}`}
+                  className="w-full rounded border border-border"
+                />
+              </div>
+            );
+          })()}
         </div>
       ))}
     </div>

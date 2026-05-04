@@ -1,5 +1,5 @@
 // PromptBoard AI — Background Service Worker (Manifest V3)
-// Handles: side panel, API proxy (to bypass CORS from side panel)
+// Handles: side panel, API proxy (to bypass CORS), file downloads
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
@@ -30,5 +30,25 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
 
     return true; // keep channel open for async response
+  }
+
+  if (message.type === 'DOWNLOAD_FILE') {
+    const { dataUrl, filename } = message.payload;
+    try {
+      chrome.downloads.download({
+        url: dataUrl,
+        filename,
+        saveAs: false,
+      }, (downloadId) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse({ ok: true, downloadId });
+        }
+      });
+    } catch (err: any) {
+      sendResponse({ ok: false, error: String(err) });
+    }
+    return true; // async response
   }
 });

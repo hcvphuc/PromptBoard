@@ -103,3 +103,30 @@ export interface ConsistencyIssue {
   affected_boards: number[];
   suggestion: string;
 }
+
+// Reference images stored in extension
+export interface ReferenceImage {
+  name: string; // character_name or location_name
+  type: 'character' | 'location';
+  imageDataUrl: string; // data:image/png;base64,...
+  prompt: string; // the prompt used to generate it
+}
+
+// Board image from storyboard generation
+export interface BoardImage {
+  boardNumber: number;
+  imageDataUrl: string; // data:image/png;base64,...
+  prompt: string;
+}
+
+// Image generation run state
+export interface ImageGenState {
+  phase: 'idle' | 'generating-characters' | 'generating-locations' | 'generating-boards' | 'downloading' | 'done' | 'error';
+  currentItem: string;
+  progress: number; // 0-100
+  totalSteps: number;
+  completedSteps: number;
+  refImages: ReferenceImage[];
+  boardImages: BoardImage[];
+  errors: string[];
+}

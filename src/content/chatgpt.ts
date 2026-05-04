@@ -1,28 +1,64 @@
 // Content script for chatgpt.com — injected via chrome.scripting.executeScript
-// Flow: Paste prompt → Click Plus → Create image → Aspect ratio 16:9 → Send
+// Handles: text prompt submission, image generation, image download, reference image paste
 
 let isRunning = false;
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'SEND_PROMPT_TO_CHATGPT') {
     if (isRunning) {
-      console.log('[PromptBoard] Already running, skipping');
       sendResponse({ success: false, error: 'Already running' });
       return false;
     }
     isRunning = true;
     fillAndSubmitChatGPT(message.text)
       .then(() => sendResponse({ success: true }))
-      .catch((err) => {
-        console.error('[PromptBoard] Flow failed:', err);
-        sendResponse({ success: false, error: String(err) });
-      })
+      .catch((err) => sendResponse({ success: false, error: String(err) }))
       .finally(() => { isRunning = false; });
     return true;
   }
+
+  if (message.type === 'GENERATE_IMAGE') {
+    if (isRunning) {
+      sendResponse({ success: false, error: 'Already running' });
+      return false;
+    }
+    isRunning = true;
+    generateImageFlow(message.text)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: String(err) }))
+      .finally(() => { isRunning = false; });
+    return true;
+  }
+
+  if (message.type === 'GENERATE_IMAGE_WITH_REFS') {
+    if (isRunning) {
+      sendResponse({ success: false, error: 'Already running' });
+      return false;
+    }
+    isRunning = true;
+    generateImageWithRefsFlow(message.text, message.refImages || [])
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ success: false, error: String(err) }))
+      .finally(() => { isRunning = false; });
+    return true;
+  }
+
+  if (message.type === 'DOWNLOAD_IMAGE') {
+    downloadImageAsDataUrl(message.imageUrl)
+      .then((dataUrl) => sendResponse({ success: true, imageDataUrl: dataUrl }))
+      .catch((err) => sendResponse({ success: false, error: String(err) }));
+    return true;
+  }
+
+  return false;
 });
 
-// Simulate a real mouse click (React/Radix need trusted events)
+// ─── Helpers ───
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 function realClick(el: HTMLElement): void {
   const rect = el.getBoundingClientRect();
   const x = rect.left + rect.width / 2;
@@ -35,16 +71,12 @@ function realClick(el: HTMLElement): void {
   el.dispatchEvent(new MouseEvent('click', opts));
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 async function waitFor<T>(finder: () => T | null, timeoutMs: number, label: string): Promise<T> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const el = finder();
     if (el) return el;
-    await sleep(200);
+    await sleep(300);
   }
   const last = finder();
   if (last) return last;
@@ -69,10 +101,10 @@ function findChatInput(): HTMLElement | null {
   return null;
 }
 
-async function fillAndSubmitChatGPT(text: string): Promise<void> {
+// ─── Original flow: text prompt only ───
 
+async function fillAndSubmitChatGPT(text: string): Promise<void> {
   // STEP 1: Fill prompt
-  console.log('[PromptBoard] Step 1: Fill prompt');
   const inputEl = await waitFor(findChatInput, 10000, 'chat input');
   inputEl.focus();
   await sleep(100);
@@ -91,10 +123,8 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
     document.execCommand('paste', false);
     await sleep(500);
   }
-  console.log('[PromptBoard] ✅ Step 1 done');
 
   // STEP 2: Click Plus button
-  console.log('[PromptBoard] Step 2: Click Plus');
   const plusBtn = await waitFor(
     () => document.querySelector('button[data-testid="composer-plus-btn"]') as HTMLButtonElement | null,
     5000, 'Plus button'
@@ -103,16 +133,13 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
   await sleep(1500);
 
   // STEP 3: Click "Create image"
-  console.log('[PromptBoard] Step 3: Click Create image');
   const createImageBtn = await waitFor(
     () => {
-      // ChatGPT uses Radix: div[role="menuitemradio"] > div.truncate "Create image"
       const items = document.querySelectorAll('div[role="menuitemradio"]');
       for (const item of items) {
         const t = item.querySelector('div.truncate');
         if (t && t.textContent?.trim() === 'Create image') return item as HTMLElement;
       }
-      // Broader fallback
       const all = document.querySelectorAll('div.truncate');
       for (const t of all) {
         if (t.textContent?.trim() === 'Create image') {
@@ -123,11 +150,10 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
     },
     8000, 'Create image'
   );
-  realClick(createImageBtn as HTMLElement);
+  realClick(createImageBtn);
   await sleep(1500);
 
   // STEP 4: Click Aspect ratio dropdown
-  console.log('[PromptBoard] Step 4: Click Aspect ratio');
   const aspectBtn = await waitFor(
     () => document.querySelector('button[aria-label="Choose image aspect ratio"]') as HTMLButtonElement | null,
     5000, 'Aspect ratio button'
@@ -136,7 +162,6 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
   await sleep(500);
 
   // STEP 5: Select Widescreen 16:9
-  console.log('[PromptBoard] Step 5: Select Widescreen 16:9');
   const widescreen = await waitFor(
     () => {
       for (const btn of document.querySelectorAll('button, [role="menuitemradio"], [role="menuitem"], [role="option"]')) {
@@ -150,7 +175,6 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
   await sleep(500);
 
   // STEP 6: Click Send
-  console.log('[PromptBoard] Step 6: Click Send');
   const sendBtn = await waitFor(
     () => {
       const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
@@ -162,5 +186,155 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
     5000, 'Send button'
   );
   realClick(sendBtn);
-  console.log('[PromptBoard] ✅ Done! Prompt submitted with Create image + 16:9');
+}
+
+// ─── Generate Image flow: fill + Create image + send + wait for result ───
+
+async function generateImageFlow(prompt: string): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  try {
+    // Fill and submit with "Create image" mode
+    await fillAndSubmitChatGPT(prompt);
+
+    // Wait for ChatGPT to generate and display image
+    const imageUrl = await waitForGeneratedImage(120000);
+
+    return { success: true, imageUrl };
+  } catch (err: any) {
+    return { success: false, error: String(err) };
+  }
+}
+
+// ─── Generate Image with Reference Images: paste images + prompt → send ───
+
+async function generateImageWithRefsFlow(
+  prompt: string,
+  refImageDataUrls: string[]
+): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  try {
+    // STEP 1: Paste reference images into chat input
+    const inputEl = await waitFor(findChatInput, 10000, 'chat input');
+    inputEl.focus();
+    await sleep(200);
+
+    for (const dataUrl of refImageDataUrls) {
+      // Convert data URL to Blob and paste via clipboard
+      const blob = dataUrlToBlob(dataUrl);
+      if (!blob) continue;
+
+      try {
+        const clipboardItem = new ClipboardItem({ [blob.type]: blob });
+        await navigator.clipboard.write([clipboardItem]);
+      } catch {
+        // Fallback: some browsers require user gesture
+        // Try alternative: create a paste event
+      }
+
+      // Simulate Ctrl+V paste
+      await sleep(100);
+      document.execCommand('paste');
+      await sleep(800);
+    }
+
+    // STEP 2: Type the prompt after pasting images
+    inputEl.focus();
+    await sleep(100);
+    document.execCommand('insertText', false, prompt);
+    await sleep(500);
+
+    // STEP 3: Click Send (regular chat mode, not "Create image" mode)
+    // When pasting reference images, ChatGPT understands context natively
+    const sendBtn = await waitFor(
+      () => {
+        const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
+        if (b1 && !b1.disabled) return b1;
+        const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+        if (b2 && !b2.disabled) return b2;
+        return null;
+      },
+      10000, 'Send button'
+    );
+    realClick(sendBtn);
+
+    // STEP 4: Wait for generated image
+    const imageUrl = await waitForGeneratedImage(120000);
+
+    return { success: true, imageUrl };
+  } catch (err: any) {
+    return { success: false, error: String(err) };
+  }
+}
+
+// ─── Wait for ChatGPT to generate an image in the response ───
+
+async function waitForGeneratedImage(timeoutMs: number): Promise<string> {
+  // Strategy: wait for new assistant message to appear with an image
+  // ChatGPT shows images as <img> tags in the response
+
+  const start = Date.now();
+  let lastImageCount = 0;
+
+  // First, wait for the "stop generating" button to appear and then disappear
+  // This indicates generation is in progress
+
+  // Wait a bit for response to start
+  await sleep(5000);
+
+  // Poll for images in the last assistant message
+  while (Date.now() - start < timeoutMs) {
+    const images = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img');
+
+    if (images.length > lastImageCount) {
+      // New image appeared — get the last one (most recent response)
+      const lastImg = images[images.length - 1] as HTMLImageElement;
+      const src = lastImg.src || lastImg.getAttribute('src');
+
+      if (src) {
+        // Wait a moment for image to fully load
+        await sleep(2000);
+        return src;
+      }
+    }
+
+    lastImageCount = Math.max(lastImageCount, images.length);
+    await sleep(2000);
+  }
+
+  throw new Error('Timeout waiting for generated image');
+}
+
+// ─── Download image as data URL (runs in ChatGPT tab context to avoid CORS) ───
+
+async function downloadImageAsDataUrl(imageUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(imageUrl, { mode: 'cors' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.warn('[PromptBoard] Download image failed:', err);
+    return null;
+  }
+}
+
+// ─── Utility: data URL to Blob ───
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  try {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const b64 = atob(parts[1]);
+    const arr = new Uint8Array(b64.length);
+    for (let i = 0; i < b64.length; i++) {
+      arr[i] = b64.charCodeAt(i);
+    }
+    return new Blob([arr], { type: mime });
+  } catch {
+    return null;
+  }
 }

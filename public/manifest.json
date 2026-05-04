@@ -3,7 +3,7 @@
   "name": "PromptBoard AI",
   "version": "0.1.0",
   "description": "Turn scripts into character, location, storyboard, and Seedance prompts.",
-  "permissions": ["storage", "sidePanel", "clipboardWrite", "activeTab", "scripting"],
+  "permissions": ["storage", "sidePanel", "clipboardWrite", "activeTab", "scripting", "downloads"],
   "host_permissions": [
     "https://openrouter.ai/*",
     "https://api.openai.com/*",

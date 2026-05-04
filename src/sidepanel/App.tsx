@@ -13,6 +13,9 @@ import { ScriptInput } from '@/components/ScriptInput';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { OutputTabs } from '@/components/OutputTabs';
 import { extensionStorage } from '@/storage/extensionStorage';
+import { runImageGeneration } from '@/imagegen/runImageGen';
+import type { ImageGenState } from '@/types/pipeline';
+import { ImageGenPanel } from '@/components/ImageGenPanel';
 
 function createProvider(config: AIProviderConfig): AIProvider {
   switch (config.provider) {
@@ -37,6 +40,19 @@ export default function App() {
   const [error, setError] = React.useState<string | null>(null);
   const [running, setRunning] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
+  const [imageGenState, setImageGenState] = React.useState<ImageGenState>({
+    phase: 'idle',
+    currentItem: '',
+    progress: 0,
+    totalSteps: 0,
+    completedSteps: 0,
+    refImages: [],
+    boardImages: [],
+    errors: [],
+  });
+  const [imageGenRunning, setImageGenRunning] = React.useState(false);
+  const [refImages, setRefImages] = React.useState<any[]>([]);
+  const [boardImages, setBoardImages] = React.useState<any[]>([]);
 
   // Load saved state on mount
   React.useEffect(() => {
@@ -80,6 +96,54 @@ export default function App() {
   const handleRegenerate = async (tab: string) => {
     // For now, re-run the full pipeline
     await handleGenerate();
+  };
+
+  const handleGenerateImages = async () => {
+    if (!output) return;
+
+    setImageGenRunning(true);
+    setImageGenState({
+      phase: 'generating-characters',
+      currentItem: '',
+      progress: 0,
+      totalSteps: (output.characters?.length || 0) + (output.locations?.length || 0) + (output.storyboards?.length || 0),
+      completedSteps: 0,
+      refImages: [],
+      boardImages: [],
+      errors: [],
+    });
+
+    try {
+      const result = await runImageGeneration(output, (state) => {
+        setImageGenState({ ...state });
+      });
+      setRefImages(result.refImages);
+      setBoardImages(result.boardImages);
+      setImageGenState((prev) => ({ ...prev, phase: 'done' }));
+    } catch (err: any) {
+      setImageGenState((prev) => ({ ...prev, phase: 'error', errors: [...prev.errors, String(err)] }));
+    } finally {
+      setImageGenRunning(false);
+    }
+  };
+
+  const handleDownloadAllImages = () => {
+    // Download reference images
+    for (const img of refImages) {
+      const filename = `${img.type}_${img.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      chrome.runtime.sendMessage({
+        type: 'DOWNLOAD_FILE',
+        payload: { dataUrl: img.imageDataUrl, filename },
+      });
+    }
+    // Download board images
+    for (const img of boardImages) {
+      const filename = `board_${img.boardNumber}.png`;
+      chrome.runtime.sendMessage({
+        type: 'DOWNLOAD_FILE',
+        payload: { dataUrl: img.imageDataUrl, filename },
+      });
+    }
   };
 
   return (
@@ -246,19 +310,40 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <OutputTabs output={output} onRegenerateTab={handleRegenerate} />
+          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} />
         )}
       </div>
 
-      {/* Back button when output is shown */}
+      {/* Image generation panel (shown when output exists) */}
       {output && (
-        <div className="px-3 py-2 bg-panel border-t border-border">
-          <button
-            onClick={() => setOutput(null)}
-            className="text-xs text-secondary hover:text-primary transition-colors"
-          >
-            ← Back to input
-          </button>
+        <div className="px-3 py-2 bg-panel border-t border-border space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOutput(null)}
+              className="text-xs text-secondary hover:text-primary transition-colors"
+            >
+              ← Back to input
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={handleGenerateImages}
+              disabled={imageGenRunning || !output}
+              className={`px-3 py-1.5 rounded-btn text-xs font-semibold transition-all ${
+                imageGenRunning
+                  ? 'bg-card border border-border text-secondary cursor-not-allowed'
+                  : 'bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20'
+              }`}
+            >
+              {imageGenRunning ? '🎨 Generating...' : '🎨 Generate Images'}
+            </button>
+          </div>
+          {imageGenState.phase !== 'idle' && (
+            <ImageGenPanel
+              state={imageGenState}
+              onCancel={() => { setImageGenRunning(false); setImageGenState((prev) => ({ ...prev, phase: 'idle' })); }}
+              onDownloadAll={handleDownloadAllImages}
+            />
+          )}
         </div>
       )}
     </div>
