@@ -106,18 +106,38 @@ SHOT TIMING RULES:
   const styleDict = STYLE_DICTIONARY[settings.stylePreset];
   const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
+  // Compact analysis summary instead of full JSON
+  const analysisSummary = `Title: ${analysis.title}
+Genre: ${analysis.genre}
+Summary: ${analysis.summary}
+Emotional Arc: ${analysis.emotional_arc}
+Main Characters: ${analysis.main_characters.join(', ')}
+Main Locations: ${analysis.main_locations.join(', ')}
+Key Props: ${analysis.key_props.join(', ')}
+Duration: ${analysis.estimated_duration_seconds}s
+Suggested Boards: ${analysis.suggested_boards}`;
+
+  // Compact bible summary
+  const bibleSummary = `Visual Style: ${bible.visual_style}
+Color Palette: ${bible.color_palette.join(', ')}
+Lighting: ${bible.lighting}
+Tone: ${bible.tone}
+Characters: ${bible.characters.map(c => `${c.name}: ${c.description}. Wardrobe: ${c.wardrobe}. Features: ${c.distinctive_features}`).join('\n')}
+Locations: ${bible.locations.map(l => `${l.name}: ${l.description}. Atmosphere: ${l.atmosphere}. Elements: ${l.key_elements.join(', ')}`).join('\n')}
+Continuity Rules: ${bible.continuity_rules.join('; ')}`;
+
   const prompt = `Create a cinematic storyboard based on the analysis and production bible.
 
 Style: ${settings.stylePreset}
 Aspect ratio: ${settings.aspectRatio}
-Board duration: ${settings.boardDuration}s (MAX — each board's shots MUST total <= ${settings.boardDuration}s)
+Board duration: ${settings.boardDuration}s (MAX - each board's shots MUST total <= ${settings.boardDuration}s)
 Language: ${settings.language}
 
 Analysis:
-${JSON.stringify(analysis, null, 2)}
+${analysisSummary}
 
 Production Bible:
-${JSON.stringify(bible, null, 2)}
+${bibleSummary}
 ${audioSection}
 Create ${boardCount} boards. Each board represents a CONTINUOUS SEQUENCE of shots totaling max ${settings.boardDuration}s.
 
