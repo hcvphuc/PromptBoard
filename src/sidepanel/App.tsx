@@ -13,6 +13,7 @@ import { ScriptInput } from '@/components/ScriptInput';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { OutputTabs } from '@/components/OutputTabs';
 import { extensionStorage } from '@/storage/extensionStorage';
+import { saveProjectToFile, readProjectFromFile, saveRecentProject, getRecentProjects, loadStoredProject, deleteStoredProject, getProjectMeta, type ProjectMeta } from '@/storage/projectFile';
 import { runImageGeneration, extractShotsFromBoards } from '@/imagegen/runImageGen';
 import type { ImageGenState, ShotImage } from '@/types/pipeline';
 import { ImageGenPanel } from '@/components/ImageGenPanel';
@@ -63,6 +64,9 @@ export default function App() {
   const [srtContent, setSrtContent] = React.useState<string>('');
   const [srtFileName, setSrtFileName] = React.useState<string>('');
   const [audioDuration, setAudioDuration] = React.useState<number>(0);
+  const [showRecentProjects, setShowRecentProjects] = React.useState(false);
+  const [recentProjects, setRecentProjects] = React.useState<ProjectMeta[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load saved state on mount
   React.useEffect(() => {
@@ -73,6 +77,9 @@ export default function App() {
       if (savedScript) setScript(savedScript);
       setSettings(savedSettings);
       setProviderConfig(savedConfig);
+      // Load recent projects list
+      const recents = await getRecentProjects();
+      setRecentProjects(recents);
     })();
   }, []);
 
@@ -244,6 +251,67 @@ export default function App() {
     }
   };
 
+  // Save project to JSON file
+  const handleSaveProject = () => {
+    saveProjectToFile({
+      script, settings, output, providerConfig, refImages, boardImages, shotImages,
+    });
+    logger.info('App', 'Project saved to file');
+  };
+
+  // Open project from file
+  const handleOpenProjectFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const pf = await readProjectFromFile(file);
+      applyProjectFile(pf);
+      // Also save to recent
+      const meta = getProjectMeta(pf);
+      await saveRecentProject(meta, pf);
+      const recents = await getRecentProjects();
+      setRecentProjects(recents);
+      logger.info('App', 'Project loaded from file', pf.project.title);
+    } catch (err: any) {
+      setError(`Failed to open project: ${err.message}`);
+    }
+    // Reset file input
+    e.target.value = '';
+  };
+
+  // Open project from storage
+  const handleOpenRecentProject = async (id: string) => {
+    try {
+      const pf = await loadStoredProject(id);
+      if (!pf) throw new Error('Project not found in storage');
+      applyProjectFile(pf);
+      setShowRecentProjects(false);
+      logger.info('App', 'Project loaded from storage', pf.project.title);
+    } catch (err: any) {
+      setError(`Failed to load project: ${err.message}`);
+    }
+  };
+
+  // Delete a recent project
+  const handleDeleteRecentProject = async (id: string) => {
+    await deleteStoredProject(id);
+    const recents = await getRecentProjects();
+    setRecentProjects(recents);
+  };
+
+  // Apply a loaded ProjectFile to app state
+  const applyProjectFile = (pf: { project: { script: string; settings: PipelineSettings; output: ProjectOutput | null; providerConfig: AIProviderConfig; refImages?: any[]; boardImages?: any[]; shotImages?: any[] } }) => {
+    const p = pf.project;
+    setScript(p.script);
+    setSettings(p.settings);
+    setOutput(p.output);
+    setProviderConfig(p.providerConfig);
+    setRefImages(p.refImages || []);
+    setBoardImages(p.boardImages || []);
+    setShotImages(p.shotImages || []);
+    setError(null);
+  };
+
   const handleExtractShots = async () => {
     if (!output || extractingShots || boardImages.length === 0) return;
     setExtractingShots(true);
@@ -272,7 +340,47 @@ export default function App() {
         <h1 className="text-sm font-bold text-primary tracking-tight">
           <span className="text-accent">PromptBoard</span> AI
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Save Project */}
+          <button
+            onClick={handleSaveProject}
+            className="p-1 rounded-md hover:bg-card text-secondary hover:text-primary transition-colors"
+            title="Save Project (.json)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+          </button>
+          {/* Open Project File */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1 rounded-md hover:bg-card text-secondary hover:text-primary transition-colors"
+            title="Open Project (.json)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.promptboard.json"
+            className="hidden"
+            onChange={handleOpenProjectFile}
+          />
+          {/* Recent Projects */}
+          <button
+            onClick={() => setShowRecentProjects(!showRecentProjects)}
+            className="p-1 rounded-md hover:bg-card text-secondary hover:text-primary transition-colors"
+            title="Recent Projects"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
           <span className="text-xs text-secondary">
             {providerConfig.provider === 'mock' ? '🎭 Mock' : providerConfig.provider}
           </span>
@@ -377,6 +485,39 @@ export default function App() {
                 }
                 className="w-full bg-card border border-border rounded-btn px-2 py-1 text-primary text-xs"
               />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent Projects Dropdown */}
+      {showRecentProjects && (
+        <div className="px-3 py-2 bg-panel border-b border-border">
+          <div className="text-xs text-secondary mb-2 font-medium">Recent Projects</div>
+          {recentProjects.length === 0 ? (
+            <div className="text-xs text-secondary py-2 text-center">No saved projects</div>
+          ) : (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {recentProjects.map((rp) => (
+                <div
+                  key={rp.id}
+                  className="flex items-center gap-2 p-2 rounded-btn hover:bg-card cursor-pointer group"
+                  onClick={() => handleOpenRecentProject(rp.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-primary font-medium truncate">{rp.title}</div>
+                    <div className="text-xs text-secondary truncate">{rp.scriptPreview}</div>
+                    <div className="text-xs text-secondary">{new Date(rp.savedAt).toLocaleString()}</div>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteRecentProject(rp.id); }}
+                    className="p-1 rounded hover:bg-red-500/20 text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Delete project"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
