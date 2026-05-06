@@ -19,6 +19,8 @@ export async function generateLocationPrompts(
   const styleDict = STYLE_DICTIONARY[settings.stylePreset];
   const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
+  const bibleSummary = `Visual Style: ${bible.visual_style}\nColor Palette: ${bible.color_palette.join(', ')}\nLocations: ${bible.locations.map(l => `${l.name}: ${l.description}. Atmosphere: ${l.atmosphere}. Elements: ${l.key_elements.join(', ')}`).join('\n')}\nContinuity: ${bible.continuity_rules.join('; ')}`;
+
   const prompt = `Generate a complete location reference prompt for each location in the production bible.
 
 Style: ${settings.stylePreset}
@@ -27,7 +29,7 @@ Aspect ratio: ${settings.aspectRatio}
 Language: ${settings.language}
 
 Production Bible:
-${JSON.stringify(bible, null, 2)}
+${bibleSummary}
 
 For each location, return a JSON object with:
 - location_name: string

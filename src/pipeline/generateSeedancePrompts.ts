@@ -35,13 +35,21 @@ async function generatePerBoard(
   const styleDict = STYLE_DICTIONARY[settings.stylePreset];
   const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
+  // Compact storyboard summary instead of full JSON
+  const storyboardSummary = storyboards.map(b => {
+    const shotsDesc = (b.shots || []).map(s => `  Shot ${s.shot_number}: ${s.shot_size}, ${s.lens_feel}, ${s.movement}. ${s.action} [${s.emotion}]`).join('\n');
+    return `Board ${b.board_number}: ${b.story_beat} | Duration: ${b.duration}s | Characters: ${(b.characters_used || []).join(', ')} | Location: ${b.location_used}\n${shotsDesc}`;
+  }).join('\n\n');
+
+  const bibleSummary = `Visual Style: ${bible.visual_style}\nColor Palette: ${bible.color_palette.join(', ')}\nCharacters: ${bible.characters.map(c => `${c.name}: ${c.wardrobe}, ${c.distinctive_features}`).join('; ')}\nLocations: ${bible.locations.map(l => `${l.name}: ${l.atmosphere}`).join('; ')}`;
+
   const prompt = `Generate a single unified video prompt for each storyboard board. Style: ${settings.stylePreset}. ${styleBlock} Max duration per board: ${settings.boardDuration}s. Language: ${settings.language}.
 
 Storyboards:
-${JSON.stringify(storyboards, null, 2)}
+${storyboardSummary}
 
-Production Bible (for continuity reference):
-${JSON.stringify(bible, null, 2)}
+Production Bible (for continuity):
+${bibleSummary}
 
 For each board, return a JSON object with:
 - board_number: number
@@ -79,13 +87,21 @@ async function generateContinuous(
   const styleDict = STYLE_DICTIONARY[settings.stylePreset];
   const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
+  // Compact storyboard summary
+  const storyboardSummary = storyboards.map(b => {
+    const shotsDesc = (b.shots || []).map(s => `  Shot ${s.shot_number}: ${s.shot_size}, ${s.lens_feel}, ${s.movement}. ${s.action} [${s.emotion}]`).join('\n');
+    return `Board ${b.board_number}: ${b.story_beat} | Duration: ${b.duration}s | Characters: ${(b.characters_used || []).join(', ')} | Location: ${b.location_used}\n${shotsDesc}`;
+  }).join('\n\n');
+
+  const bibleSummary = `Visual Style: ${bible.visual_style}\nColor Palette: ${bible.color_palette.join(', ')}\nCharacters: ${bible.characters.map(c => `${c.name}: ${c.wardrobe}, ${c.distinctive_features}`).join('; ')}\nLocations: ${bible.locations.map(l => `${l.name}: ${l.atmosphere}`).join('; ')}`;
+
   const prompt = `Generate a single continuous video prompt from the storyboard boards. Style: ${settings.stylePreset}. ${styleBlock} Total duration: ${totalDuration}s. Language: ${settings.language}.
 
 Storyboards:
-${JSON.stringify(storyboards, null, 2)}
+${storyboardSummary}
 
-Production Bible (for continuity reference):
-${JSON.stringify(bible, null, 2)}
+Production Bible (for continuity):
+${bibleSummary}
 
 CRITICAL CONTINUOUS SCENE RULES:
 - This must be a SINGLE continuous video

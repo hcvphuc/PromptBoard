@@ -312,31 +312,11 @@ export async function runImageGeneration(
   return { refImages, boardImages };
 }
 
-/** Build enhanced board prompt with reference context */
+/** Build enhanced board prompt with reference context - NO text appended, refs are sent as image attachments only */
 function buildBoardPrompt(board: any, refs: ReferenceImage[]): string {
-  const charRefs = refs.filter((r) => r.type === 'character');
-  const locRefs = refs.filter((r) => r.type === 'location');
-
-  let prompt = board.storyboard_prompt;
-
-  if (charRefs.length > 0 || locRefs.length > 0) {
-    prompt += '\n\n--- REFERENCE IMAGES ATTACHED ---';
-
-    if (charRefs.length > 0) {
-      const charDetails = charRefs.map((r) => {
-        const boardChar = board.characters_used?.find((c: string) => c.toLowerCase() === r.name.toLowerCase());
-        return boardChar ? `${r.name} (see attached reference)` : r.name;
-      }).join(', ');
-      prompt += `\nCHARACTERS: ${charDetails}. These reference images define the EXACT appearance. Replicate their face, body type, wardrobe, and distinctive features with zero deviation. Do not reinterpret or redesign.`;
-    }
-
-    if (locRefs.length > 0) {
-      const locNames = locRefs.map((r) => `${r.name} (see attached reference)`).join(', ');
-      prompt += `\nLOCATIONS: ${locNames}. These reference images define the EXACT environment. Replicate the architecture, lighting, color palette, atmosphere, and props with zero deviation. Do not reinterpret or redesign.`;
-    }
-  }
-
-  return prompt;
+  // Just return the storyboard_prompt as-is
+  // Reference images are sent as separate image attachments in the ChatGPT message
+  return board.storyboard_prompt;
 }
 
 /** Convert Blob to data URL */

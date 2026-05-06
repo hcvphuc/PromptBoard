@@ -19,6 +19,8 @@ export async function generateCharacterPrompts(
   const styleDict = STYLE_DICTIONARY[settings.stylePreset];
   const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
+  const bibleSummary = `Visual Style: ${bible.visual_style}\nColor Palette: ${bible.color_palette.join(', ')}\nCharacters: ${bible.characters.map(c => `${c.name}: ${c.description}. Wardrobe: ${c.wardrobe}. Features: ${c.distinctive_features}`).join('\n')}\nLocations: ${bible.locations.map(l => `${l.name}: ${l.atmosphere}`).join('; ')}\nContinuity: ${bible.continuity_rules.join('; ')}`;
+
   const prompt = `Generate a complete character sheet prompt for each character in the production bible.
 
 Style: ${settings.stylePreset}
@@ -27,7 +29,7 @@ Aspect ratio: ${settings.aspectRatio}
 Language: ${settings.language}
 
 Production Bible:
-${JSON.stringify(bible, null, 2)}
+${bibleSummary}
 
 For each character, return a JSON object with:
 - character_name: string
