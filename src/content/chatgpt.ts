@@ -206,18 +206,37 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
   realClick(widescreen);
   await sleep(500);
 
-  // STEP 6: Click Send
-  const sendBtn = await waitFor(
-    () => {
-      const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
-      if (b1 && !b1.disabled) return b1;
-      const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
-      if (b2 && !b2.disabled) return b2;
-      return null;
-    },
-    60000, 'Send button'
-  );
-  realClick(sendBtn);
+  // STEP 6: Click Send — with Enter key fallback
+  const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
+  let sent = false;
+
+  try {
+    const sendBtn = await waitFor(
+      () => {
+        const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
+        if (b1 && !b1.disabled) return b1;
+        const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+        if (b2 && !b2.disabled) return b2;
+        return null;
+      },
+      120000, 'Send button'
+    );
+    realClick(sendBtn);
+    sent = true;
+  } catch {
+    console.warn('[PromptBoard] Send button not found, trying Enter fallback');
+  }
+
+  if (!sent) {
+    const inputEl = findChatInput();
+    if (inputEl) {
+      inputEl.focus();
+      await sleep(200);
+      inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      await sleep(100);
+      inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+    }
+  }
 }
 
 // ─── Generate Image flow: fill + Create image + send + wait for result ───
@@ -301,22 +320,84 @@ async function generateImageWithRefsFlow(
       await sleep(500);
     }
 
-    // STEP 4: Click Send
-    const sendBtn = await waitFor(
-      () => {
-        const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
-        if (b1 && !b1.disabled) return b1;
-        const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
-        if (b2 && !b2.disabled) return b2;
-        return null;
-      },
-      60000, 'Send button (with refs)'
-    );
-    // STEP 5: Wait for generated image — count baseline before sending
+    // STEP 4: Click Send — with Enter key fallback and retry
     const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
-    realClick(sendBtn);
-    const imageUrl = await waitForGeneratedImage(300000, baseline);
+    let sent = false;
 
+    // Try 1: Find Send button (120s timeout — ChatGPT can be slow with refs)
+    try {
+      const sendBtn = await waitFor(
+        () => {
+          // Try multiple selectors — ChatGPT UI may change
+          const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
+          if (b1 && !b1.disabled) return b1;
+          const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+          if (b2 && !b2.disabled) return b2;
+          const b3 = document.querySelector('button[aria-label="Stop generating"]') as HTMLButtonElement | null;
+          // If Stop button visible, ChatGPT is already processing — that's OK
+          if (b3) return b3;
+          // Also check for any submit-like button in the composer
+          const b4 = document.querySelector('form button[type="submit"]') as HTMLButtonElement | null;
+          if (b4 && !b4.disabled) return b4;
+          return null;
+        },
+        120000, 'Send button (with refs)'
+      );
+
+      // If it's the Stop button, ChatGPT is already generating — just wait
+      const isStopBtn = sendBtn.getAttribute('aria-label')?.includes('Stop');
+      if (!isStopBtn) {
+        realClick(sendBtn);
+        console.log('[PromptBoard] Clicked Send button');
+      } else {
+        console.log('[PromptBoard] ChatGPT already generating, waiting for result');
+      }
+      sent = true;
+    } catch (sendErr) {
+      console.warn('[PromptBoard] Send button not found after 120s, trying Enter key fallback');
+    }
+
+    // Try 2: Enter key fallback
+    if (!sent) {
+      try {
+        inputEl.focus();
+        await sleep(200);
+        // Dispatch Enter key on the input
+        inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        await sleep(100);
+        inputEl.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        await sleep(100);
+        inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+        console.log('[PromptBoard] Sent via Enter key fallback');
+        sent = true;
+      } catch (enterErr) {
+        console.warn('[PromptBoard] Enter key fallback failed:', enterErr);
+      }
+    }
+
+    // Try 3: Re-focus input and retry Send button (short wait)
+    if (!sent) {
+      try {
+        inputEl.focus();
+        await sleep(3000);
+        const retryBtn = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null
+          || document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+        if (retryBtn && !retryBtn.disabled) {
+          realClick(retryBtn);
+          console.log('[PromptBoard] Retry Send button succeeded');
+          sent = true;
+        }
+      } catch {
+        // Give up
+      }
+    }
+
+    if (!sent) {
+      return { success: false, error: 'Failed to find Send button or send via Enter after all retries' };
+    }
+
+    // STEP 5: Wait for generated image
+    const imageUrl = await waitForGeneratedImage(300000, baseline);
     return { success: true, imageUrl };
   } catch (err: any) {
     return { success: false, error: String(err) };
@@ -659,21 +740,36 @@ async function extractShotsFlow(
       await sleep(500);
     }
 
-    // STEP 4: Click Send
-    const sendBtn = await waitFor(
-      () => {
-        const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
-        if (b1 && !b1.disabled) return b1;
-        const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
-        if (b2 && !b2.disabled) return b2;
-        return null;
-      },
-      60000, 'Send button (extract shots)'
-    );
+    // STEP 4: Click Send — with Enter key fallback
+    const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
+    let sent = false;
+
+    try {
+      const sendBtn = await waitFor(
+        () => {
+          const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
+          if (b1 && !b1.disabled) return b1;
+          const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+          if (b2 && !b2.disabled) return b2;
+          return null;
+        },
+        120000, 'Send button (extract shots)'
+      );
+      realClick(sendBtn);
+      sent = true;
+    } catch {
+      console.warn('[PromptBoard] Extract shots Send button not found, trying Enter fallback');
+    }
+
+    if (!sent) {
+      inputEl.focus();
+      await sleep(200);
+      inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+      await sleep(100);
+      inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+    }
 
     // STEP 5: Wait for multiple generated images
-    const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
-    realClick(sendBtn);
     const imageUrls = await waitForGeneratedImages(300000, expectedCount, baseline);
 
     return { success: true, imageUrls };
