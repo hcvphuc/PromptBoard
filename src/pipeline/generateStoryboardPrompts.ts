@@ -48,7 +48,7 @@ function validateStoryboardPrompt(board: StoryboardBoard, styleBlock: string, as
   const characters = board.characters_used.join(', ');
   const location = board.location_used;
 
-  const rebuiltPrompt = `Multi-panel production storyboard layout, ${shotCount} panels arranged in ${grid} grid on off-white paper. Panel borders with thin black lines. Panel number in top-left corner of each panel. ${panelDescriptions} Characters: ${characters}. Location: ${location}. Thin directional arrows between panels showing sequence. Production storyboard, ${shotCount}-panel grid layout, sketch aesthetic, panel borders, directional arrows. ${styleBlock} Aspect ratio: ${aspectRatio}.`;
+  const rebuiltPrompt = `Multi-panel cinematic storyboard, ${shotCount} still frames arranged in ${grid} grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. ${panelDescriptions} Characters: ${characters}. Location: ${location}. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. ${styleBlock} Aspect ratio: ${aspectRatio}.`;
 
   return { ...board, storyboard_prompt: rebuiltPrompt };
 }
@@ -145,15 +145,15 @@ STORYBOARD PROMPT RULES (CRITICAL - MUST FOLLOW):
 - storyboard_prompt MUST describe a MULTI-PANEL grid layout - NEVER a single panel
 - If the board has N shots, the storyboard MUST have N panels in the grid
 - Grid layout: 2 shots = 1x2, 3 shots = 1x3, 4 shots = 2x2, 5 shots = 2x3 (1 empty), 6 shots = 2x3
-- START the prompt with: "Multi-panel production storyboard layout, [N] panels arranged in a [ROWS]x[COLS] grid on off-white paper."
+- START the prompt with: "Multi-panel cinematic storyboard, [N] still frames arranged in a [ROWS]x[COLS] grid."
 - For EACH panel write: "Panel [N] ([shot_size], [lens]): [visual description of what we SEE]"
 - EVERY panel MUST show a DIFFERENT shot - do NOT repeat or merge shots
 - The grid is read left-to-right, top-to-bottom: Panel 1 is top-left, Panel 2 is top-right, etc.
 - Between panels: thin directional arrows showing sequence flow
 - Shared consistency: same character faces/wardrobe, same location across ALL panels
-- Style: production storyboard aesthetic - sketch/render hybrid, panel borders, pencil lines, light shading
-- END with: "Production storyboard, [N]-panel grid layout, sketch aesthetic, panel borders, directional arrows, ${styleBlock}"
-- EXAMPLE (4 shots): "Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel number in top-left corner of each panel. Panel 1 (Wide, 14mm): Wide shot establishing the convenience store interior - Nala behind counter, elderly man entering through glass door, fluorescent overhead lighting. Panel 2 (Medium, 35mm): Nala's face looking up, neutral expression, tight bun, blue polyester polo visible. Panel 3 (Close-Up, 85mm): Hands pausing over barcode scanner, item on counter. Panel 4 (Medium, 50mm): Transaction moment - both figures framed across counter. Thin directional arrows between panels. Production storyboard, 4-panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9."
+- STYLE: cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. NOT sketch, NOT illustration, NOT comic. Photorealistic cinematography.
+- END with: "Cinematic still frames, photorealistic, film grain, each panel is a paused moment from the actual film. ${styleBlock}"
+- EXAMPLE (4 shots): "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Panel borders with thin black lines. Small panel number in top-left corner of each panel. Each panel is a photorealistic cinematic still frame. Panel 1 (Wide, 14mm): Wide shot establishing the convenience store interior - Nala behind counter, elderly man entering through glass door, fluorescent overhead lighting casting harsh shadows. Panel 2 (Medium, 35mm): Nala's face looking up, neutral expression, tight bun, blue polyester polo visible, shallow depth of field. Panel 3 (Close-Up, 85mm): Hands pausing over barcode scanner, item on counter, warm light on skin. Panel 4 (Medium, 50mm): Transaction moment - both figures framed across counter, realistic lighting. Thin directional arrows between panels. Cinematic still frames, photorealistic, film grain, each panel is a paused moment from the actual film. Cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9."
 
 CRITICAL RULES:
 - Do NOT illustrate dialogue directly - translate emotion into visuals
