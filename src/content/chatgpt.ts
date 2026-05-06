@@ -217,7 +217,7 @@ async function generateImageFlow(prompt: string): Promise<{ success: boolean; im
     await fillAndSubmitChatGPT(prompt);
 
     // Wait for ChatGPT to generate and display a NEW image
-    const imageUrl = await waitForGeneratedImage(120000, baseline);
+    const imageUrl = await waitForGeneratedImage(240000, baseline);
 
     return { success: true, imageUrl };
   } catch (err: any) {
@@ -296,12 +296,12 @@ async function generateImageWithRefsFlow(
         if (b2 && !b2.disabled) return b2;
         return null;
       },
-      15000, 'Send button (with refs)'
+      30000, 'Send button (with refs)'
     );
     // STEP 5: Wait for generated image — count baseline before sending
     const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
     realClick(sendBtn);
-    const imageUrl = await waitForGeneratedImage(180000, baseline);
+    const imageUrl = await waitForGeneratedImage(300000, baseline);
 
     return { success: true, imageUrl };
   } catch (err: any) {

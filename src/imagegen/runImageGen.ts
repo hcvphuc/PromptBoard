@@ -70,6 +70,9 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated character: ${char.character_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
+        let savedUrl = false;
+
+        // Try ChatGPT context download first
         const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
         if (dataUrl) {
           refImages.push({
@@ -78,7 +81,11 @@ export async function runImageGeneration(
             imageDataUrl: dataUrl,
             prompt: char.prompt,
           });
-        } else {
+          savedUrl = true;
+        }
+
+        // Fallback: fetch directly
+        if (!savedUrl) {
           try {
             const resp = await fetch(result.imageUrl);
             const blob = await resp.blob();
@@ -89,10 +96,23 @@ export async function runImageGeneration(
               imageDataUrl: base64,
               prompt: char.prompt,
             });
+            savedUrl = true;
           } catch {
-            errors.push(`Character "${char.character_name}": image generated but download failed`);
-            logger.warn('ImageGen', `Download failed: ${char.character_name}`, 'Data URL conversion failed');
+            // Last resort: save URL directly
+            logger.warn('ImageGen', `All download methods failed for ${char.character_name}, saving URL directly`);
+            refImages.push({
+              name: char.character_name,
+              type: 'character',
+              imageDataUrl: result.imageUrl,
+              prompt: char.prompt,
+            });
+            savedUrl = true;
           }
+        }
+
+        if (!savedUrl) {
+          errors.push(`Character "${char.character_name}": image generated but all download methods failed`);
+          logger.warn('ImageGen', `All download methods failed: ${char.character_name}`);
         }
       } else {
         errors.push(`Character "${char.character_name}": ${result.error || 'generation failed'}`);
@@ -121,6 +141,8 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated location: ${loc.location_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
+        let savedUrl = false;
+
         const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
         if (dataUrl) {
           refImages.push({
@@ -129,7 +151,10 @@ export async function runImageGeneration(
             imageDataUrl: dataUrl,
             prompt: loc.prompt,
           });
-        } else {
+          savedUrl = true;
+        }
+
+        if (!savedUrl) {
           try {
             const resp = await fetch(result.imageUrl);
             const blob = await resp.blob();
@@ -140,10 +165,22 @@ export async function runImageGeneration(
               imageDataUrl: base64,
               prompt: loc.prompt,
             });
+            savedUrl = true;
           } catch {
-            errors.push(`Location "${loc.location_name}": image generated but download failed`);
-            logger.warn('ImageGen', `Download failed: ${loc.location_name}`, 'Data URL conversion failed');
+            logger.warn('ImageGen', `All download methods failed for ${loc.location_name}, saving URL directly`);
+            refImages.push({
+              name: loc.location_name,
+              type: 'location',
+              imageDataUrl: result.imageUrl,
+              prompt: loc.prompt,
+            });
+            savedUrl = true;
           }
+        }
+
+        if (!savedUrl) {
+          errors.push(`Location "${loc.location_name}": image generated but all download methods failed`);
+          logger.warn('ImageGen', `All download methods failed: ${loc.location_name}`);
         }
       } else {
         errors.push(`Location "${loc.location_name}": ${result.error || 'generation failed'}`);
@@ -167,13 +204,22 @@ export async function runImageGeneration(
     emit('generating-boards', label);
 
     try {
-      // Find matching reference images
+      // Find matching reference images (dedup by name)
+      const seenNames = new Set<string>();
       const charRefs = refImages.filter(
         (r) => r.type === 'character' && board.characters_used.some((c) => c.toLowerCase() === r.name.toLowerCase())
-      );
+      ).filter(r => {
+        if (seenNames.has(r.name.toLowerCase())) return false;
+        seenNames.add(r.name.toLowerCase());
+        return true;
+      });
       const locRefs = refImages.filter(
         (r) => r.type === 'location' && r.name.toLowerCase() === board.location_used.toLowerCase()
-      );
+      ).filter(r => {
+        if (seenNames.has(r.name.toLowerCase())) return false;
+        seenNames.add(r.name.toLowerCase());
+        return true;
+      });
       const allRefs = [...charRefs, ...locRefs];
 
       logger.info('ImageGen', `Generating: ${label}`, allRefs.length > 0 ? `${allRefs.length} ref images attached` : 'No refs');
@@ -207,6 +253,8 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated board: ${label}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
+        let savedUrl = false;
+
         const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
         if (dataUrl) {
           boardImages.push({
@@ -214,7 +262,10 @@ export async function runImageGeneration(
             imageDataUrl: dataUrl,
             prompt: board.storyboard_prompt,
           });
-        } else {
+          savedUrl = true;
+        }
+
+        if (!savedUrl) {
           try {
             const resp = await fetch(result.imageUrl);
             const blob = await resp.blob();
@@ -224,10 +275,21 @@ export async function runImageGeneration(
               imageDataUrl: base64,
               prompt: board.storyboard_prompt,
             });
+            savedUrl = true;
           } catch {
-            errors.push(`${label}: board image generated but download failed`);
-            logger.warn('ImageGen', `Download failed: ${label}`, 'Data URL conversion failed');
+            logger.warn('ImageGen', `All download methods failed for ${label}, saving URL directly`);
+            boardImages.push({
+              boardNumber: board.board_number,
+              imageDataUrl: result.imageUrl,
+              prompt: board.storyboard_prompt,
+            });
+            savedUrl = true;
           }
+        }
+
+        if (!savedUrl) {
+          errors.push(`${label}: board image generated but all download methods failed`);
+          logger.warn('ImageGen', `All download methods failed: ${label}`);
         }
       } else {
         errors.push(`${label}: ${result.error || 'generation failed'}`);

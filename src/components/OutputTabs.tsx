@@ -338,26 +338,15 @@ function ShotPromptsTab({ data }: { data: StoryboardBoard[] }) {
       }))
   );
 
-  const allText = allShots.map(s => s.shot.master_prompt!).join('\n\n---\n\n');
+  const allText = allShots.map(s => s.shot.master_prompt!).join('\n');
 
-  // If no master_prompts yet, show shot info without prompts
+  // If no master_prompts yet, show instruction
   if (allShots.length === 0) {
     return (
       <div className="space-y-3">
         <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
           <p className="text-xs text-secondary">No shot prompts yet. Run "🎬 Breakdown All" on the Storyboards tab first to generate per-shot master prompts.</p>
         </div>
-        {data.map(board => (
-          <div key={board.board_number} className="space-y-2">
-            <h4 className="text-xs font-semibold text-accent">Board {board.board_number}</h4>
-            {board.shots.map(shot => (
-              <div key={shot.shot_number} className="bg-card border border-border rounded-btn p-2">
-                <p className="text-xs text-secondary">Shot {shot.shot_number}: {shot.shot_size} | {shot.lens_feel} | {shot.movement}</p>
-                <p className="text-xs text-secondary">{shot.action}</p>
-              </div>
-            ))}
-          </div>
-        ))}
       </div>
     );
   }
@@ -365,29 +354,14 @@ function ShotPromptsTab({ data }: { data: StoryboardBoard[] }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end gap-2">
-        <SendToChatGPTButton text={allText} label="🎬 Send All Shots" />
         <CopyButton text={allText} label="Copy All" />
       </div>
       <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
-        <p className="text-xs text-secondary">{allShots.length} shot prompts across {data.length} boards. Each prompt is a single unified paragraph ready for image/video generation.</p>
+        <p className="text-xs text-secondary">{allShots.length} video prompts across {data.length} boards. Copy all and paste into your video generation tool.</p>
       </div>
-      {data.map(board => {
-        const shotsWithPrompts = board.shots.filter(s => s.master_prompt);
-        if (shotsWithPrompts.length === 0) return null;
-        return (
-          <div key={board.board_number} className="space-y-2">
-            <h4 className="text-xs font-semibold text-accent">Board {board.board_number}</h4>
-            {shotsWithPrompts.map(shot => (
-              <PromptCard
-                key={shot.shot_number}
-                title={`Shot ${shot.shot_number} — ${shot.shot_size} | ${shot.lens_feel} | ${shot.movement}`}
-                content={shot.master_prompt!}
-                showSendToChatGPT
-              />
-            ))}
-          </div>
-        );
-      })}
+      <div className="bg-card border border-border rounded-btn p-3">
+        <pre className="text-xs text-primary whitespace-pre-wrap font-mono leading-relaxed">{allText}</pre>
+      </div>
     </div>
   );
 }
