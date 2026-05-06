@@ -17,6 +17,7 @@ import { saveProjectToFile, readProjectFromFile, saveRecentProject, getRecentPro
 import { runImageGeneration, extractShotsFromBoards } from '@/imagegen/runImageGen';
 import type { ImageGenState, ShotImage } from '@/types/pipeline';
 import { ImageGenPanel } from '@/components/ImageGenPanel';
+import { ResizableSplit } from '@/components/ResizableSplit';
 import { logger } from '@/logger/logger';
 import { breakdownShots, breakdownAllShots } from '@/pipeline/breakdownShots';
 import { parseSRT, getSRTDuration } from '@/pipeline/srtParser';
@@ -524,9 +525,9 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {!output ? (
-          <div className="p-3 space-y-4">
+          <div className="h-full overflow-y-auto p-3 space-y-4">
             {/* Script Input */}
             <ScriptInput script={script} onChange={setScript} disabled={running} />
 
@@ -602,42 +603,47 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} onExtractShots={handleExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />
+          // Use ResizableSplit when output and image gen are both active
+          <ResizableSplit
+            key="outsplit"
+            top={
+              <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} onExtractShots={handleExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />
+            }
+            bottom={
+              <div className="px-3 py-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setOutput(null)}
+                    className="text-xs text-secondary hover:text-primary transition-colors"
+                  >
+                    ← Back to input
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={handleGenerateImages}
+                    disabled={imageGenRunning || !output}
+                    className={`px-3 py-1.5 rounded-btn text-xs font-semibold transition-all ${imageGenRunning
+                      ? 'bg-card border border-border text-secondary cursor-not-allowed'
+                      : 'bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20'
+                    }`}
+                  >
+                    {imageGenRunning ? '🎨 Generating...' : '🎨 Generate Images'}
+                  </button>
+                </div>
+                {imageGenState.phase !== 'idle' && (
+                  <ImageGenPanel
+                    state={imageGenState}
+                    onCancel={() => { setImageGenRunning(false); setImageGenState((prev) => ({ ...prev, phase: 'idle' })); }}
+                    onDownloadAll={handleDownloadAllImages}
+                  />
+                )}
+              </div>
+            }
+            defaultRatio={0.55}
+            minBottomPx={80}
+          />
         )}
       </div>
-
-      {/* Image generation panel (shown when output exists) */}
-      {output && (
-        <div className="px-3 py-2 bg-panel border-t border-border space-y-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setOutput(null)}
-              className="text-xs text-secondary hover:text-primary transition-colors"
-            >
-              ← Back to input
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={handleGenerateImages}
-              disabled={imageGenRunning || !output}
-              className={`px-3 py-1.5 rounded-btn text-xs font-semibold transition-all ${
-                imageGenRunning
-                  ? 'bg-card border border-border text-secondary cursor-not-allowed'
-                  : 'bg-accent hover:bg-accent/90 text-white shadow-lg shadow-accent/20'
-              }`}
-            >
-              {imageGenRunning ? '🎨 Generating...' : '🎨 Generate Images'}
-            </button>
-          </div>
-          {imageGenState.phase !== 'idle' && (
-            <ImageGenPanel
-              state={imageGenState}
-              onCancel={() => { setImageGenRunning(false); setImageGenState((prev) => ({ ...prev, phase: 'idle' })); }}
-              onDownloadAll={handleDownloadAllImages}
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }

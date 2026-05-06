@@ -20,6 +20,39 @@ function randomDelay(minSec: number, maxSec: number): Promise<void> {
   return sleep(ms);
 }
 
+/** Download image from ChatGPT tab as data URL — NEVER saves raw URL.
+ *  Tries downloadImageAsDataUrl (content script context) with 1 retry.
+ *  If all attempts fail, returns null (caller should skip the image).
+ */
+async function ensureDataUrl(imageUrl: string, label: string): Promise<string | null> {
+  // Attempt 1: download via content script (ChatGPT tab context, has cookies)
+  let dataUrl = await downloadImageAsDataUrl(imageUrl);
+  if (dataUrl) return dataUrl;
+
+  logger.warn('ImageGen', `First download failed for ${label}, retrying via content script...`);
+  await sleep(2000);
+
+  // Attempt 2: retry via content script
+  dataUrl = await downloadImageAsDataUrl(imageUrl);
+  if (dataUrl) return dataUrl;
+
+  // Attempt 3: try fetch + blob (may work for non-auth URLs)
+  try {
+    const resp = await fetch(imageUrl);
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const base64 = await blobToDataUrl(blob);
+      if (base64.startsWith('data:')) return base64;
+    }
+  } catch {
+    // fetch failed too
+  }
+
+  // All methods failed — DO NOT save raw URL (it won't display outside ChatGPT tab)
+  logger.error('ImageGen', `All download methods failed for ${label} — image skipped`);
+  return null;
+}
+
 export async function runImageGeneration(
   output: ProjectOutput,
   onProgress?: ImageGenProgressCallback,
@@ -71,10 +104,8 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated character: ${char.character_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
-        let savedUrl = false;
 
-        // Try ChatGPT context download first
-        const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
+        const dataUrl = await ensureDataUrl(result.imageUrl, `character ${char.character_name}`);
         if (dataUrl) {
           refImages.push({
             name: char.character_name,
@@ -82,38 +113,8 @@ export async function runImageGeneration(
             imageDataUrl: dataUrl,
             prompt: char.prompt,
           });
-          savedUrl = true;
-        }
-
-        // Fallback: fetch directly
-        if (!savedUrl) {
-          try {
-            const resp = await fetch(result.imageUrl);
-            const blob = await resp.blob();
-            const base64 = await blobToDataUrl(blob);
-            refImages.push({
-              name: char.character_name,
-              type: 'character',
-              imageDataUrl: base64,
-              prompt: char.prompt,
-            });
-            savedUrl = true;
-          } catch {
-            // Last resort: save URL directly
-            logger.warn('ImageGen', `All download methods failed for ${char.character_name}, saving URL directly`);
-            refImages.push({
-              name: char.character_name,
-              type: 'character',
-              imageDataUrl: result.imageUrl,
-              prompt: char.prompt,
-            });
-            savedUrl = true;
-          }
-        }
-
-        if (!savedUrl) {
-          errors.push(`Character "${char.character_name}": image generated but all download methods failed`);
-          logger.warn('ImageGen', `All download methods failed: ${char.character_name}`);
+        } else {
+          errors.push(`Character "${char.character_name}": image generated but download failed`);
         }
       } else {
         errors.push(`Character "${char.character_name}": ${result.error || 'generation failed'}`);
@@ -142,9 +143,8 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated location: ${loc.location_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
-        let savedUrl = false;
 
-        const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
+        const dataUrl = await ensureDataUrl(result.imageUrl, `location ${loc.location_name}`);
         if (dataUrl) {
           refImages.push({
             name: loc.location_name,
@@ -152,36 +152,8 @@ export async function runImageGeneration(
             imageDataUrl: dataUrl,
             prompt: loc.prompt,
           });
-          savedUrl = true;
-        }
-
-        if (!savedUrl) {
-          try {
-            const resp = await fetch(result.imageUrl);
-            const blob = await resp.blob();
-            const base64 = await blobToDataUrl(blob);
-            refImages.push({
-              name: loc.location_name,
-              type: 'location',
-              imageDataUrl: base64,
-              prompt: loc.prompt,
-            });
-            savedUrl = true;
-          } catch {
-            logger.warn('ImageGen', `All download methods failed for ${loc.location_name}, saving URL directly`);
-            refImages.push({
-              name: loc.location_name,
-              type: 'location',
-              imageDataUrl: result.imageUrl,
-              prompt: loc.prompt,
-            });
-            savedUrl = true;
-          }
-        }
-
-        if (!savedUrl) {
-          errors.push(`Location "${loc.location_name}": image generated but all download methods failed`);
-          logger.warn('ImageGen', `All download methods failed: ${loc.location_name}`);
+        } else {
+          errors.push(`Location "${loc.location_name}": image generated but download failed`);
         }
       } else {
         errors.push(`Location "${loc.location_name}": ${result.error || 'generation failed'}`);
@@ -254,43 +226,16 @@ export async function runImageGeneration(
 
       if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated board: ${label}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
-        let savedUrl = false;
 
-        const dataUrl = await downloadImageAsDataUrl(result.imageUrl);
+        const dataUrl = await ensureDataUrl(result.imageUrl, `board ${label}`);
         if (dataUrl) {
           boardImages.push({
             boardNumber: board.board_number,
             imageDataUrl: dataUrl,
             prompt: board.storyboard_prompt,
           });
-          savedUrl = true;
-        }
-
-        if (!savedUrl) {
-          try {
-            const resp = await fetch(result.imageUrl);
-            const blob = await resp.blob();
-            const base64 = await blobToDataUrl(blob);
-            boardImages.push({
-              boardNumber: board.board_number,
-              imageDataUrl: base64,
-              prompt: board.storyboard_prompt,
-            });
-            savedUrl = true;
-          } catch {
-            logger.warn('ImageGen', `All download methods failed for ${label}, saving URL directly`);
-            boardImages.push({
-              boardNumber: board.board_number,
-              imageDataUrl: result.imageUrl,
-              prompt: board.storyboard_prompt,
-            });
-            savedUrl = true;
-          }
-        }
-
-        if (!savedUrl) {
-          errors.push(`${label}: board image generated but all download methods failed`);
-          logger.warn('ImageGen', `All download methods failed: ${label}`);
+        } else {
+          errors.push(`${label}: board image generated but download failed`);
         }
       } else {
         errors.push(`${label}: ${result.error || 'generation failed'}`);
@@ -362,11 +307,19 @@ export async function extractShotsFromBoards(
     const label = `Board ${board.board_number}`;
     emit(label);
 
-    // Find the board image
+    // Find the board image — validate it's a real data URL, not a raw ChatGPT URL
     const boardImg = boardImages.find(b => b.boardNumber === board.board_number);
     if (!boardImg) {
       errors.push(`${label}: no storyboard image found — run Image Gen first`);
       logger.warn('ShotExtract', `No board image for ${label}`);
+      completedSteps++;
+      continue;
+    }
+
+    // Validate: board image must be a data URL (raw ChatGPT URLs won't display)
+    if (!boardImg.imageDataUrl || !boardImg.imageDataUrl.startsWith('data:')) {
+      errors.push(`${label}: storyboard image URL is invalid (not a data URL) — regenerate board image`);
+      logger.error('ShotExtract', `Board image for ${label} is not a data URL: ${(boardImg.imageDataUrl || '').slice(0, 60)}`);
       completedSteps++;
       continue;
     }
@@ -391,10 +344,7 @@ export async function extractShotsFromBoards(
           if (!shot) break;
 
           const url = result.imageUrls[i];
-          let savedUrl = false;
-
-          // Try download as data URL
-          const dataUrl = await downloadImageAsDataUrl(url);
+          const dataUrl = await ensureDataUrl(url, `shot ${shot.shot_number} (board ${board.board_number})`);
           if (dataUrl) {
             shotImages.push({
               boardNumber: board.board_number,
@@ -402,32 +352,8 @@ export async function extractShotsFromBoards(
               imageDataUrl: dataUrl,
               prompt: shot.master_prompt || '',
             });
-            savedUrl = true;
-          }
-
-          // Fallback: fetch directly
-          if (!savedUrl) {
-            try {
-              const resp = await fetch(url);
-              const blob = await resp.blob();
-              const base64 = await blobToDataUrl(blob);
-              shotImages.push({
-                boardNumber: board.board_number,
-                shotNumber: shot.shot_number,
-                imageDataUrl: base64,
-                prompt: shot.master_prompt || '',
-              });
-              savedUrl = true;
-            } catch {
-              logger.warn('ShotExtract', `All download methods failed for shot ${shot.shot_number}, saving URL directly`);
-              shotImages.push({
-                boardNumber: board.board_number,
-                shotNumber: shot.shot_number,
-                imageDataUrl: url,
-                prompt: shot.master_prompt || '',
-              });
-              savedUrl = true;
-            }
+          } else {
+            errors.push(`${label}: shot ${shot.shot_number} generated but download failed`);
           }
         }
         logger.info('ShotExtract', `Extracted ${result.imageUrls.length} shots from ${label}`);
