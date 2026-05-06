@@ -2,11 +2,12 @@ import React from 'react';
 import type { ProjectOutput } from '@/types/output';
 import type { OutputTab } from '@/types/output';
 import { OUTPUT_TABS } from '@/types/output';
-import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage } from '@/types/pipeline';
+import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage, StoryboardShot } from '@/types/pipeline';
 import { CopyButton } from './CopyButton';
 import { PromptCard } from './PromptCard';
 import { SendToChatGPTButton } from './SendToChatGPTButton';
 import { ProductionBibleView } from './ProductionBibleView';
+import { LogsTab } from './LogsTab';
 import { exportMarkdown } from '@/export/markdown';
 import { exportJSON } from '@/export/json';
 
@@ -15,9 +16,12 @@ interface OutputTabsProps {
   onRegenerateTab?: (tab: OutputTab) => void;
   refImages?: ReferenceImage[];
   boardImages?: BoardImage[];
+  onBreakdownShots?: (boardNumber: number) => void;
+  onBreakdownAllShots?: () => void;
+  shotBreakdownRunning?: boolean;
 }
 
-export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [] }: OutputTabsProps) {
+export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [], onBreakdownShots, onBreakdownAllShots, shotBreakdownRunning }: OutputTabsProps) {
   const [activeTab, setActiveTab] = React.useState<OutputTab>('analysis');
 
   return (
@@ -45,9 +49,11 @@ export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImage
         {activeTab === 'bible' && <ProductionBibleView bible={output.bible} />}
         {activeTab === 'characters' && <CharactersTab data={output.characters} refImages={refImages.filter(r => r.type === 'character')} />}
         {activeTab === 'locations' && <LocationsTab data={output.locations} refImages={refImages.filter(r => r.type === 'location')} />}
-        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} />}
-        {activeTab === 'seedance' && <SeedanceTab data={output.seedance} />}
+        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} onBreakdownShots={onBreakdownShots} onBreakdownAllShots={onBreakdownAllShots} shotBreakdownRunning={shotBreakdownRunning} />}
+        {activeTab === 'shot-prompts' && <ShotPromptsTab data={output.storyboards} />}
+        {activeTab === 'board-prompts' && <BoardPromptsTab data={output.seedance} />}
         {activeTab === 'export' && <ExportTab output={output} />}
+        {activeTab === 'logs' && <LogsTab />}
       </div>
 
       {/* Footer actions */}
@@ -65,11 +71,62 @@ export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImage
 
 function AnalysisTab({ data }: { data: AnalysisOutput }) {
   const fullText = JSON.stringify(data, null, 2);
+
+  const duration = data.estimated_duration_seconds;
+  const boardCount = data.suggested_boards;
+  const avgBoardDuration = boardCount > 0 ? Math.round(duration / boardCount) : 0;
+  const totalShots = boardCount * 4; // Estimate ~4 shots per board
+
+  const hasBeats = data.story_beats && data.story_beats.length > 0;
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
         <CopyButton text={fullText} label="Copy All" />
       </div>
+
+      {/* Shot Estimation Card */}
+      <div className="bg-accent/10 border border-accent/30 rounded-btn p-3 space-y-2">
+        <h4 className="text-xs font-semibold text-accent">🎬 Shot Estimation</h4>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className="text-lg font-bold text-primary">{boardCount}</div>
+            <div className="text-xs text-secondary">Boards</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-primary">~{totalShots}</div>
+            <div className="text-xs text-secondary">Shots</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-primary">{avgBoardDuration}s</div>
+            <div className="text-xs text-secondary">Avg/Board</div>
+          </div>
+        </div>
+        <div className="text-xs text-secondary">Total duration: {duration}s • ~4 shots per board • {boardCount} boards = ~{totalShots} shots</div>
+      </div>
+
+      {/* Pacing Map (audio-driven mode only) */}
+      {hasBeats && (
+        <div className="bg-card border border-accent/30 rounded-btn p-3 space-y-2">
+          <h4 className="text-xs font-semibold text-accent">🎵 Pacing Map</h4>
+          <p className="text-xs text-secondary">{data.story_beats!.length} story beats from audio analysis</p>
+          <div className="space-y-1">
+            {data.story_beats!.map((beat, i) => {
+              const pacingColor = beat.pacing === 'intense' ? 'text-red-400 bg-red-500/10' : beat.pacing === 'slow' ? 'text-blue-400 bg-blue-500/10' : 'text-yellow-400 bg-yellow-500/10';
+              const duration = (beat.end_time - beat.start_time).toFixed(1);
+              return (
+                <div key={i} className="flex items-center gap-2 py-1 border-b border-border/50 last:border-0">
+                  <span className="text-xs text-secondary w-6">{beat.beat_number}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${pacingColor}`}>{beat.pacing}</span>
+                  <span className="text-xs text-secondary flex-1 truncate">{beat.description}</span>
+                  <span className="text-xs text-primary font-mono">{duration}s</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {[
         ['Title', data.title],
         ['Genre', data.genre],
@@ -165,7 +222,7 @@ function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: 
   );
 }
 
-function StoryboardsTab({ data, boardImages }: { data: StoryboardBoard[]; boardImages: BoardImage[] }) {
+function StoryboardsTab({ data, boardImages, onBreakdownShots, onBreakdownAllShots, shotBreakdownRunning }: { data: StoryboardBoard[]; boardImages: BoardImage[]; onBreakdownShots?: (boardNumber: number) => void; onBreakdownAllShots?: () => void; shotBreakdownRunning?: boolean; }) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -174,18 +231,47 @@ function StoryboardsTab({ data, boardImages }: { data: StoryboardBoard[]; boardI
     );
   }
 
-  const allText = data.map(b => b.image_generation_prompt).filter(Boolean).join('\n\n---\n\n');
+  const allStoryboardText = data.map(b => b.storyboard_prompt).filter(Boolean).join('\n\n---\n\n');
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
-        <SendToChatGPTButton text={allText} label="Send All to ChatGPT" />
-        <CopyButton text={allText} label="Copy All" />
+      <div className="flex justify-end gap-2 flex-wrap">
+        {onBreakdownAllShots && (
+          <button
+            onClick={onBreakdownAllShots}
+            disabled={shotBreakdownRunning}
+            className={`px-3 py-1 text-xs rounded-btn border transition-colors ${
+              shotBreakdownRunning
+                ? 'border-border bg-card text-secondary cursor-not-allowed'
+                : 'border-accent/50 bg-accent/10 text-accent hover:bg-accent/20'
+            }`}
+            title="Break down all boards into detailed cinematic shots"
+          >
+            🎬 Breakdown All
+          </button>
+        )}
+        <SendToChatGPTButton text={allStoryboardText} label="📊 Send All to ChatGPT" />
+        <CopyButton text={allStoryboardText} label="Copy All" />
       </div>
       {data.map((board) => (
         <div key={board.board_number} className="space-y-2">
           <div className="flex items-center gap-2">
             <h4 className="text-xs font-semibold text-accent">Board {board.board_number}</h4>
-            <span className="text-xs text-secondary">{board.duration}s</span>
+            <span className="text-xs text-secondary">{board.duration}s{board.audio_duration ? ` (audio: ${board.audio_duration}s)` : ''}</span>
+            <div className="flex-1" />
+            {onBreakdownShots && (
+              <button
+                onClick={() => onBreakdownShots(board.board_number)}
+                disabled={shotBreakdownRunning}
+                className={`px-2 py-0.5 text-xs rounded-btn border transition-colors ${
+                  shotBreakdownRunning
+                    ? 'border-border bg-card text-secondary cursor-not-allowed'
+                    : 'border-border bg-card text-secondary hover:text-accent hover:border-accent/50'
+                }`}
+                title="Break down this board into detailed cinematic shots"
+              >
+                🎬 Shots
+              </button>
+            )}
           </div>
           <div className="bg-card border border-border rounded-btn p-3 space-y-1">
             <p className="text-xs text-secondary"><span className="text-primary/70">Beat:</span> {board.story_beat}</p>
@@ -195,18 +281,23 @@ function StoryboardsTab({ data, boardImages }: { data: StoryboardBoard[]; boardI
           {board.shots.map((shot) => (
             <div key={shot.shot_number} className="bg-card border border-border rounded-btn p-3 space-y-1">
               <div className="flex items-center justify-between">
-                <h5 className="text-xs font-semibold text-primary">Shot {shot.shot_number}</h5>
-                <CopyButton text={`${shot.shot_size} | ${shot.lens_feel} | ${shot.movement}\nAction: ${shot.action}\nEmotion: ${shot.emotion}\nAudio: ${shot.dialogue_audio}`} />
+                <h5 className="text-xs font-semibold text-primary">Shot {shot.shot_number}{shot.start_time !== undefined ? ` (${shot.start_time.toFixed(1)}s–${shot.end_time?.toFixed(1)}s)` : ''}</h5>
+                <CopyButton text={`${shot.shot_size} | ${shot.lens_feel} | ${shot.movement}${shot.composition ? ` | ${shot.composition}` : ''}\nAction: ${shot.action}\nEmotion: ${shot.emotion}\nAudio: ${shot.dialogue_audio}`} />
               </div>
-              <p className="text-xs text-secondary"><span className="text-primary/70">Size:</span> {shot.shot_size} | <span className="text-primary/70">Lens:</span> {shot.lens_feel} | <span className="text-primary/70">Movement:</span> {shot.movement}</p>
+              <p className="text-xs text-secondary">
+                <span className="text-primary/70">Size:</span> {shot.shot_size} | 
+                <span className="text-primary/70">Lens:</span> {shot.lens_feel} | 
+                <span className="text-primary/70">Movement:</span> {shot.movement}
+                {shot.composition && <> | <span className="text-primary/70">Comp:</span> {shot.composition}</>}
+              </p>
               <p className="text-xs text-secondary"><span className="text-primary/70">Action:</span> {shot.action}</p>
               <p className="text-xs text-secondary"><span className="text-primary/70">Emotion:</span> {shot.emotion}</p>
               <p className="text-xs text-secondary"><span className="text-primary/70">Audio:</span> {shot.dialogue_audio}</p>
             </div>
           ))}
           <PromptCard
-            title="Image Generation Prompt"
-            content={board.image_generation_prompt}
+            title="📊 Storyboard Layout Prompt"
+            content={board.storyboard_prompt}
             showSendToChatGPT
           />
           {(() => {
@@ -228,25 +319,45 @@ function StoryboardsTab({ data, boardImages }: { data: StoryboardBoard[]; boardI
   );
 }
 
-function SeedanceTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePromptContinuous }) {
-  const allText = JSON.stringify(data, null, 2);
+function ShotPromptsTab({ data }: { data: StoryboardBoard[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <p className="text-xs text-secondary">No storyboard data. Run the pipeline first.</p>
+      </div>
+    );
+  }
 
-  if (!Array.isArray(data)) {
-    const s = data as SeedancePromptContinuous;
+  // Collect all shots with master_prompt across all boards
+  const allShots = data.flatMap(board =>
+    board.shots
+      .filter(shot => shot.master_prompt)
+      .map(shot => ({
+        boardNumber: board.board_number,
+        shot,
+      }))
+  );
+
+  const allText = allShots.map(s => s.shot.master_prompt!).join('\n\n---\n\n');
+
+  // If no master_prompts yet, show shot info without prompts
+  if (allShots.length === 0) {
     return (
       <div className="space-y-3">
-        <div className="flex justify-end gap-2">
-          <SendToChatGPTButton text={allText} />
-          <CopyButton text={allText} label="Copy All" />
-        </div>
         <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
-          <h4 className="text-xs font-semibold text-accent mb-2">Continuous Scene — {s.total_duration}s</h4>
+          <p className="text-xs text-secondary">No shot prompts yet. Run "🎬 Breakdown All" on the Storyboards tab first to generate per-shot master prompts.</p>
         </div>
-        <PromptCard title="Scene Description" content={s.scene_description} />
-        <PromptCard title="Action Timeline" content={s.action_timeline} />
-        <PromptCard title="Camera Movement" content={s.camera_movement} />
-        <PromptCard title="Motion" content={s.motion} />
-        <PromptCard title="Negative Prompt" content={s.negative_prompt} />
+        {data.map(board => (
+          <div key={board.board_number} className="space-y-2">
+            <h4 className="text-xs font-semibold text-accent">Board {board.board_number}</h4>
+            {board.shots.map(shot => (
+              <div key={shot.shot_number} className="bg-card border border-border rounded-btn p-2">
+                <p className="text-xs text-secondary">Shot {shot.shot_number}: {shot.shot_size} | {shot.lens_feel} | {shot.movement}</p>
+                <p className="text-xs text-secondary">{shot.action}</p>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
@@ -254,16 +365,73 @@ function SeedanceTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePrompt
   return (
     <div className="space-y-3">
       <div className="flex justify-end gap-2">
-        <SendToChatGPTButton text={allText} />
+        <SendToChatGPTButton text={allText} label="🎬 Send All Shots" />
+        <CopyButton text={allText} label="Copy All" />
+      </div>
+      <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
+        <p className="text-xs text-secondary">{allShots.length} shot prompts across {data.length} boards. Each prompt is a single unified paragraph ready for image/video generation.</p>
+      </div>
+      {data.map(board => {
+        const shotsWithPrompts = board.shots.filter(s => s.master_prompt);
+        if (shotsWithPrompts.length === 0) return null;
+        return (
+          <div key={board.board_number} className="space-y-2">
+            <h4 className="text-xs font-semibold text-accent">Board {board.board_number}</h4>
+            {shotsWithPrompts.map(shot => (
+              <PromptCard
+                key={shot.shot_number}
+                title={`Shot ${shot.shot_number} — ${shot.shot_size} | ${shot.lens_feel} | ${shot.movement}`}
+                content={shot.master_prompt!}
+                showSendToChatGPT
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BoardPromptsTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePromptContinuous }) {
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <p className="text-xs text-secondary">No board prompts yet. Run the pipeline to generate video prompts.</p>
+      </div>
+    );
+  }
+
+  if (!Array.isArray(data)) {
+    // Continuous mode — single master prompt
+    const s = data as SeedancePromptContinuous;
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end gap-2">
+          <SendToChatGPTButton text={s.master_prompt} label="🎬 Send Master Prompt" />
+          <CopyButton text={s.master_prompt} label="Copy All" />
+        </div>
+        <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
+          <h4 className="text-xs font-semibold text-accent mb-2">Continuous Scene — {s.total_duration}s</h4>
+          <p className="text-xs text-secondary">Single master prompt for the entire scene.</p>
+        </div>
+        <PromptCard title="Master Prompt" content={s.master_prompt} showSendToChatGPT />
+        <PromptCard title="Negative Prompt" content={s.negative_prompt} />
+      </div>
+    );
+  }
+
+  // Per-board mode
+  const allText = (data as SeedancePromptPerBoard[]).map(s => s.board_prompt).join('\n\n---\n\n');
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end gap-2">
+        <SendToChatGPTButton text={allText} label="🎬 Send All Boards" />
         <CopyButton text={allText} label="Copy All" />
       </div>
       {(data as SeedancePromptPerBoard[]).map((s) => (
         <div key={s.board_number} className="space-y-2">
           <h4 className="text-xs font-semibold text-accent">Board {s.board_number} — {s.duration}s</h4>
-          <PromptCard title="Scene Setup" content={s.scene_setup} />
-          <PromptCard title="Action Timeline" content={s.action_timeline} />
-          <PromptCard title="Camera Movement" content={s.camera_movement} />
-          <PromptCard title="Motion" content={s.motion} />
+          <PromptCard title="Board Prompt" content={s.board_prompt} showSendToChatGPT />
           <PromptCard title="Negative Prompt" content={s.negative_prompt} />
         </div>
       ))}

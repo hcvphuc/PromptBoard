@@ -3,7 +3,7 @@ import type { AIProvider } from '@/ai/provider';
 import type { PipelineSettings } from '@/types/project';
 import { SYSTEM_PROMPT } from '@/ai/provider';
 import { getMockBible } from '@/ai/mock';
-import { extractJSON } from '@/ai/extractJSON';
+import { generateWithRetry } from '@/ai/generateWithRetry';
 
 export async function buildProductionBible(
   analysis: AnalysisOutput,
@@ -31,6 +31,8 @@ Return a JSON object with:
 
 Return ONLY valid JSON, no other text. No markdown code blocks.`;
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  return extractJSON<ProductionBible>(response);
+  return generateWithRetry<ProductionBible>(
+    provider, prompt, SYSTEM_PROMPT,
+    (json) => json as ProductionBible,
+  );
 }

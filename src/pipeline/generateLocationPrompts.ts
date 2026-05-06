@@ -1,9 +1,10 @@
 import type { LocationPrompt, ProductionBible } from '@/types/pipeline';
 import type { AIProvider } from '@/ai/provider';
+import { SYSTEM_PROMPT_LOCATION } from '@/ai/provider';
 import type { PipelineSettings } from '@/types/project';
-import { SYSTEM_PROMPT } from '@/ai/provider';
+import { STYLE_DICTIONARY } from '@/types/project';
 import { getMockLocations } from '@/ai/mock';
-import { extractJSON } from '@/ai/extractJSON';
+import { generateWithRetry } from '@/ai/generateWithRetry';
 import { unwrapArray } from '@/ai/unwrapArray';
 
 export async function generateLocationPrompts(
@@ -15,28 +16,50 @@ export async function generateLocationPrompts(
     return JSON.parse(getMockLocations());
   }
 
-  const prompt = `Generate ONE complete location reference prompt for each location in the production bible. Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}. Language: ${settings.language}.
+  const styleDict = STYLE_DICTIONARY[settings.stylePreset];
+  const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
+
+  const prompt = `Generate a complete location reference prompt for each location in the production bible.
+
+Style: ${settings.stylePreset}
+${styleBlock}
+Aspect ratio: ${settings.aspectRatio}
+Language: ${settings.language}
 
 Production Bible:
 ${JSON.stringify(bible, null, 2)}
 
 For each location, return a JSON object with:
 - location_name: string
-- prompt: string (a SINGLE unified prompt that covers ALL of the following in one production-ready prompt:)
+- prompt: string
 
-Each prompt must include ALL of these elements combined into ONE cohesive prompt:
-1. Wide establishing shot showing the full space, atmosphere, scale, and environment
-2. Medium usable production frame with key elements visible and well-composed
-3. Close-up detail textures, surfaces, and small atmospheric details
+Each prompt MUST be a SINGLE unified prompt covering:
 
-The prompt must reference the location's color palette, lighting, and atmosphere from the bible to ensure visual consistency. Write it as a single flowing prompt that can be pasted directly into an AI image generator.
+1. Start with: "[LOCATION NAME] — WIDE ESTABLISHING VIEW, EMPTY SET, NO PEOPLE"
+2. Include: environment type, function in story
+3. Include: spatial layout — where things are placed, key visual axis
+4. Include: visual breakdown — wide establishing view as PRIMARY image content
+5. Include: scene elements — furniture/architecture, props, foreground/midground/background layering
+6. Include: lighting — source, direction, intensity, quality (soft/flat/contrast)
+7. Include: color system — dominant palette + accent colors
+8. Include: atmosphere — emotional feel
+9. Include: time of day
+10. End with: "${styleBlock} Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}."
 
-Example prompt format:
-"[LOCATION NAME]. [DESCRIPTION]. [ATMOSPHERE]. Wide establishing shot showing full space with [KEY ELEMENTS]. Medium production frame with [SPECIFIC ELEMENTS] well-composed. Close-up detail on [TEXTURES/SURFACES]. [LIGHTING]. [COLOR PALETTE MOOD]. Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}."
+STRICT RULES FOR LOCATION PROMPTS:
+- The prompt MUST describe a WIDE ESTABLISHING VIEW — the full environment visible
+- The prompt MUST specify NO PEOPLE, NO CHARACTERS, NO HUMAN FIGURES — empty set
+- Character positions are described in text for reference only — they MUST NOT appear in the image
+- The space should look like a film set BEFORE actors arrive
+- Must produce a CONSISTENT, FILMABLE ENVIRONMENT
+- Every object must feel intentional. No clutter, no randomness
+- Must support character interaction and remain consistent across storyboard shots
 
-Return a JSON ARRAY of location prompt objects. ONLY valid JSON, no other text. No markdown code blocks.`;
+Return a JSON ARRAY. ONLY valid JSON, no markdown code blocks, no extra text.`;
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  const parsed = extractJSON<LocationPrompt[]>(response);
-  return unwrapArray<LocationPrompt>(parsed);
+  const parsed = await generateWithRetry<LocationPrompt[]>(
+    provider, prompt, SYSTEM_PROMPT_LOCATION,
+    (json) => unwrapArray<LocationPrompt>(json),
+  );
+  return parsed;
 }

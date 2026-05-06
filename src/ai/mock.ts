@@ -141,7 +141,7 @@ export function getMockStoryboards(): string {
           dialogue_audio: 'Lena: "Play it." / Signal: faint rhythmic pulse',
         },
       ],
-      image_generation_prompt: 'Cinematic frame, Deep Space Vessel Horizon interior, Commander Lena Vasquez mid-40s Hispanic woman in dark navy flight suit leaning toward signal receiver device, amber panel lighting, blue starlight through viewport, holographic ORION sphere casting soft blue glow, intense curiosity on weathered face, hard sci-fi aesthetic, 16:9 aspect ratio, film grain, anamorphic lens flare',
+      storyboard_prompt: 'Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel 1 (Wide, 14mm): Wide shot of Deep Space Vessel Horizon command module, amber panel lighting, Commander Lena Vasquez mid-40s Hispanic woman in dark navy flight suit at console, holographic ORION sphere casting soft blue glow. Panel 2 (Medium, 35mm): Lena leaning toward signal receiver, face showing intense curiosity, weathered features lit by screen glow. Panel 3 (Close-Up, 85mm): Signal receiver screen showing green waveform spike, Lena\'s eyes reflected in the oscilloscope glass. Panel 4 (Medium, 50mm): Lena at console with ORION sphere, decision moment. Thin directional arrows between panels. Production storyboard, panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9.',
     },
     {
       board_number: 2,
@@ -178,7 +178,7 @@ export function getMockStoryboards(): string {
           dialogue_audio: 'Lena: "I know the risk. Set a course."',
         },
       ],
-      image_generation_prompt: 'Cinematic frame, Deep Space Vessel Horizon, Commander Lena Vasquez standing at viewport touching wedding ring on chain, ORION blue holographic sphere nearby displaying station schematics, family photo on console in background, amber and blue lighting, contemplative melancholic mood, hard sci-fi, 16:9, shallow depth of field',
+      storyboard_prompt: 'Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel 1 (Medium, 50mm): Lena standing at viewport, ORION sphere floating beside her, she touches the ring on her chain, amber panel lighting. Panel 2 (Over-shoulder, 35mm): ORION display projecting star map, Lena silhouette against viewport, blue starlight. Panel 3 (Close-Up, 85mm): Lena hand on chain ring, eyes distant with longing, soft blue holographic light on face. Panel 4 (Wide, 24mm): Full command module, Lena small figure at viewport, ORION sphere hovering, vast emptiness of space outside. Thin directional arrows between panels. Production storyboard, panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9.',
     },
     {
       board_number: 3,
@@ -215,7 +215,7 @@ export function getMockStoryboards(): string {
           dialogue_audio: 'Lena: "Something is still alive here."',
         },
       ],
-      image_generation_prompt: 'Cinematic frame, Abandoned Station Omega-9 interior, Commander Lena Vasquez in navy flight suit floating in zero-G central hub, green bioluminescent plant glow illuminating the scene, floating debris, ORION sphere bright cyan alert state, derelict corridor with emergency strips, eerie beauty, hard sci-fi, 16:9, volumetric lighting',
+      storyboard_prompt: 'Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel 1 (Wide, 14mm): Abandoned Station Omega-9 interior, dark corridor, emergency strip lighting, Lena floating in zero-G central hub, green bioluminescent plant glow. Panel 2 (Medium, 35mm): Lena pushing through airlock, flashlight illuminating derelict walls, floating debris. Panel 3 (Close-Up, 85mm): ORION sphere in bright cyan alert state, Lena eyes wide with wonder and unease. Panel 4 (Medium, 50mm): Eerie beauty of the derelict station, volumetric lighting through cracks. Thin directional arrows between panels. Production storyboard, panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9.',
     },
     {
       board_number: 4,
@@ -252,7 +252,7 @@ export function getMockStoryboards(): string {
           dialogue_audio: 'Lena: "We\'re not alone. We never were." / Signal pulses warmly',
         },
       ],
-      image_generation_prompt: 'Cinematic frame, Abandoned Station Omega-9 hydroponics bay, massive bioluminescent garden filling space station interior, Commander Lena Vasquez small figure at entrance, green and amber glow from living plants, ORION sphere flickering with data, tendrils reaching toward light, bitters hopeful atmosphere, hard sci-fi meets organic beauty, 16:9, volumetric bioluminescent lighting, film grain',
+      storyboard_prompt: 'Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel 1 (Wide, 24mm): Massive bioluminescent garden filling space station interior, Lena small figure at entrance, green and amber glow from living plants. Panel 2 (Medium, 35mm): Lena walking through garden, ORION sphere flickering with data beside her, plant tendrils reaching toward light. Panel 3 (Close-Up, 85mm): Lena face showing bittersweet hope, tears welling, bioluminescent light casting green glow on features. Panel 4 (Medium, 50mm): ORION sphere pulsing gently among the plants, connection between technology and organic life. Thin directional arrows between panels. Production storyboard, panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9.',
     },
   ]);
 }
@@ -262,37 +262,25 @@ export function getMockSeedancePerBoard(): string {
     {
       board_number: 1,
       duration: 15,
-      scene_setup: 'Interior Deep Space Vessel Horizon command module. Amber panel lighting, blue starlight through viewport. Commander Lena Vasquez in navy flight suit at console. ORION holographic sphere floating above.',
-      action_timeline: '0-3s: Camera slowly pushes through corridor toward command module. 3-8s: Lena tilts head, hand reaches toward signal receiver. 8-15s: Close on signal receiver waveform spike, Lena\'s eyes reflected in glass.',
-      camera_movement: 'Slow dolly forward through corridor, transition to static medium close-up, slight push-in on close-up',
-      motion: 'Subtle: head tilt, hand reach, waveform oscillation, ORION gentle pulse',
+      board_prompt: 'Interior Deep Space Vessel Horizon command module, amber panel lighting casting warm pools across brushed steel console, blue starlight filtering through viewport. Commander Lena Vasquez mid-40s Hispanic woman in dark navy flight suit leans toward signal receiver, ORION holographic sphere floating above console casting soft blue glow. Camera slowly pushes through corridor toward command module, transitions to static medium close-up, slight push-in on signal receiver waveform spike reflected in Lena\'s eyes. Subtle head tilt, hand reaching toward receiver, ORION gentle pulse, waveform oscillation. Cinematic drama, anamorphic lens, muted teal/orange palette, shallow depth of field. Style: cinematic.',
       negative_prompt: 'blurry, low quality, text watermark, deformed hands, wrong wardrobe, bright studio lighting, modern interior, outdoor scene, cartoon style',
     },
     {
       board_number: 2,
       duration: 15,
-      scene_setup: 'Interior Deep Space Vessel Horizon, same amber and blue lighting. Lena at viewport. ORION sphere beside her showing station schematics. Family photo on console behind.',
-      action_timeline: '0-5s: Lena standing at viewport, hand touches ring on chain. 5-10s: ORION displays station schematics, calm blue sphere. 10-15s: Close on Lena\'s hand gripping ring, family photo in soft background.',
-      camera_movement: 'Slow orbit around Lena at viewport, static over-shoulder, handheld intimate close-up',
-      motion: 'Subtle: hand touches chain, ORION display rotates, gentle breathing',
+      board_prompt: 'Interior Deep Space Vessel Horizon, same amber and blue lighting. Lena stands at viewport, hand touches ring on silver chain, ORION sphere beside her projecting station schematics in soft blue. Camera slowly orbits around Lena at viewport, static over-shoulder framing, then intimate handheld close-up of hand gripping ring, family photo visible in soft background. Subtle movement: hand touches chain, ORION display rotates, gentle breathing. Cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic.',
       negative_prompt: 'blurry, low quality, text watermark, wrong lighting, bright environment, modern office, casual clothes, cartoon style, anime',
     },
     {
       board_number: 3,
       duration: 15,
-      scene_setup: 'Interior Abandoned Station Omega-9. Dark corridor, emergency strip lighting. Zero-G central hub. Green bioluminescent glow from hydroponics. Debris floating. ORION bright cyan.',
-      action_timeline: '0-5s: Airlock opens, Lena floats through with flashlight and keycard. 5-10s: Drifting through zero-G hub, debris floating around, ORION scanning. 10-15s: Face lit by green glow, hand reaching toward plants.',
-      camera_movement: 'Slow push through airlock, floating zero-G camera movement, steady tracking close-up',
-      motion: 'Zero-G floating, debris drift, flashlight beam sweep, bioluminescent pulse, plant tendril movement',
+      board_prompt: 'Interior Abandoned Station Omega-9, dark corridor lit by emergency strip lighting, zero-G central hub with green bioluminescent glow seeping from hydroponics. Lena floats through airlock with flashlight and keycard, debris drifting around her, ORION sphere bright cyan scanning mode. Camera pushes slowly through airlock, floating zero-G movement, steady tracking close-up on Lena\'s face lit by green glow, hand reaching toward bioluminescent plants. Zero-G floating, debris drift, flashlight beam sweep, bioluminescent pulse. Cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic.',
       negative_prompt: 'blurry, low quality, text watermark, gravity effects, wrong location, bright daylight, clean station, modern technology, wrong wardrobe, cartoon',
     },
     {
       board_number: 4,
       duration: 15,
-      scene_setup: 'Interior Abandoned Station Omega-9 hydroponics bay. Massive bioluminescent garden. Green and amber glow. Lena small at entrance. ORION flickering. Plants reaching toward light.',
-      action_timeline: '0-5s: Wide reveal of massive garden, Lena at entrance. 5-10s: Walking through garden, plants reaching toward her, ORION data overload flicker. 10-15s: Lena smiling through tears, hand reaching out, camera pulls back to wide.',
-      camera_movement: 'Crane up revealing scale, slow forward approach, pull back from close-up to wide shot',
-      motion: 'Plant tendrils slowly reaching, bioluminescent pulsing brighter, Lena walking, tears, ORION flickering, gentle swaying of garden',
+      board_prompt: 'Interior Abandoned Station Omega-9 hydroponics bay, massive bioluminescent garden filling the space, green and amber glow from living plants, Lena small figure at entrance, ORION sphere flickering with data overload. Camera cranes up revealing scale of the garden, slow forward approach as Lena walks through, plants reaching toward her, then pulls back from close-up of her smiling through tears to wide shot of the entire garden. Plant tendrils slowly reaching, bioluminescent pulsing brighter, Lena walking with wonder, tears forming, ORION flickering. Cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic.',
       negative_prompt: 'blurry, low quality, text watermark, harsh lighting, dead plants, horror atmosphere, wrong location, wrong wardrobe, modern interior, cartoon style',
     },
   ]);
@@ -301,10 +289,7 @@ export function getMockSeedancePerBoard(): string {
 export function getMockSeedanceContinuous(): string {
   return JSON.stringify({
     total_duration: 60,
-    scene_description: 'A lone astronaut on the Deep Space Vessel Horizon receives a mysterious signal from an abandoned station. She debates the risk, travels to the derelict station, and discovers a living bioluminescent garden that has been sending the signal for seventeen years. Same characters, wardrobe, and environment throughout. Commander Lena Vasquez in dark navy flight suit with mission patches. ORION holographic blue sphere. Horizon interior with amber and blue lighting. Omega-9 station with green bioluminescent glow.',
-    action_timeline: '0-15s: Horizon interior. Lena detects signal at console. ORION alerts. Close on signal receiver.\n15-30s: Horizon viewport. Lena debates with ORION. Touches ring on chain. Decides to investigate.\n30-45s: Omega-9 airlock and zero-G hub. Lena enters station. Discovers bioluminescent plants.\n45-60s: Omega-9 hydroponics bay. Massive garden reveal. Lena reaches toward plants. Bittersweet realization.',
-    camera_movement: 'Dolly through corridor → orbit at viewport → push through airlock with floating camera → crane reveal of garden → pull back to wide',
-    motion: 'Subtle character movement, zero-G floating, bioluminescent pulsing, plant tendril reaching, ORION sphere state changes, tears forming',
+    master_prompt: 'Deep Space Vessel Horizon interior, amber panel lighting and blue starlight through viewport, Commander Lena Vasquez mid-40s Hispanic woman in dark navy flight suit. Camera pushes through corridor toward command module where Lena detects a mysterious signal at console, ORION holographic blue sphere alerting. Slow orbit at viewport as Lena debates investigating, hand touching ring on silver chain, ORION displaying station schematics. Push through airlock into Abandoned Station Omega-9, dark corridor with emergency strip lighting, zero-G central hub with green bioluminescent glow from hydroponics, debris drifting, Lena floating with flashlight. Crane up revealing massive bioluminescent garden filling the station interior, green and amber glow, Lena walks through with wonder as plants reach toward her, ORION flickering with data, Lena smiling through tears. Continuous camera movement throughout, subtle character motion, bioluminescent pulsing, zero-G floating. Cinematic drama, anamorphic lens, muted teal/orange palette, shallow depth of field, film grain. Style: cinematic.',
     negative_prompt: 'blurry, low quality, text watermark, deformed hands, inconsistent wardrobe, wrong location, bright studio lighting, modern interior, outdoor scene, cartoon style, anime, camera equipment visible, scene reset, character identity change, lighting inconsistency, gravity in zero-G scenes',
   });
 }

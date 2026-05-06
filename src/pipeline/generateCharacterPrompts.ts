@@ -1,9 +1,10 @@
 import type { CharacterPrompt, ProductionBible } from '@/types/pipeline';
 import type { AIProvider } from '@/ai/provider';
+import { SYSTEM_PROMPT_CHARACTER } from '@/ai/provider';
 import type { PipelineSettings } from '@/types/project';
-import { SYSTEM_PROMPT } from '@/ai/provider';
+import { STYLE_DICTIONARY } from '@/types/project';
 import { getMockCharacters } from '@/ai/mock';
-import { extractJSON } from '@/ai/extractJSON';
+import { generateWithRetry } from '@/ai/generateWithRetry';
 import { unwrapArray } from '@/ai/unwrapArray';
 
 export async function generateCharacterPrompts(
@@ -15,29 +16,39 @@ export async function generateCharacterPrompts(
     return JSON.parse(getMockCharacters());
   }
 
-  const prompt = `Generate ONE complete character sheet prompt for each character in the production bible. Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}. Language: ${settings.language}.
+  const styleDict = STYLE_DICTIONARY[settings.stylePreset];
+  const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
+
+  const prompt = `Generate a complete character sheet prompt for each character in the production bible.
+
+Style: ${settings.stylePreset}
+${styleBlock}
+Aspect ratio: ${settings.aspectRatio}
+Language: ${settings.language}
 
 Production Bible:
 ${JSON.stringify(bible, null, 2)}
 
 For each character, return a JSON object with:
 - character_name: string
-- prompt: string (a SINGLE unified prompt that covers ALL of the following in one production-ready prompt:)
+- prompt: string
 
-Each prompt must include ALL of these elements combined into ONE cohesive prompt:
-1. Full body character reference sheet showing front view, side view, back view, and 3/4 view
-2. Close-up portrait with cinematic shallow depth of field
-3. Neutral standing pose in character's environment
-4. Dynamic expressive pose showing the character's key emotion
+Each prompt MUST be a SINGLE unified prompt following the STUDIO CHARACTER SHEET format:
 
-The prompt must embed the character's distinctive features, wardrobe, and identity markers directly in the description to ensure consistency. Write it as a single flowing prompt that can be pasted directly into an AI image generator.
+1. Start with: "Character sheet of [NAME]"
+2. Include: face structure, body type, posture, overall vibe
+3. Include: exact wardrobe (materials, colors, condition) — this is CRITICAL for consistency
+4. Include: key accessories
+5. Include: expression range (neutral + one key emotion)
+6. End with: "Pure white background. Soft even studio lighting. No environment. No scenery. No shadows on background. Full body front view, side view, back view, 3/4 view, close-up portrait. ${styleBlock} Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}."
 
-Example prompt format:
-"Character sheet of [NAME]. [DESCRIPTION]. [WARDROBE DETAILS]. [DISTINCTIVE FEATURES]. Full body front view, side view, back view, 3/4 view. Close-up portrait with cinematic shallow DOF. Neutral pose in [ENVIRONMENT]. Dynamic [EMOTION] pose showing [SPECIFIC ACTION/EXPRESSION]. Clean white studio background for reference views, cinematic lighting. Consistent identity throughout. Style: ${settings.stylePreset}. Aspect ratio: ${settings.aspectRatio}."
+STRICT: The prompt must produce a CLEAN CHARACTER REFERENCE SHEET on white/background — NOT a cinematic scene. The character must NOT be placed in any location.
 
-Return a JSON ARRAY of character prompt objects. ONLY valid JSON, no other text. No markdown code blocks.`;
+Return a JSON ARRAY. ONLY valid JSON, no markdown code blocks, no extra text.`;
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  const parsed = extractJSON<CharacterPrompt[]>(response);
-  return unwrapArray<CharacterPrompt>(parsed);
+  const parsed = await generateWithRetry<CharacterPrompt[]>(
+    provider, prompt, SYSTEM_PROMPT_CHARACTER,
+    (json) => unwrapArray<CharacterPrompt>(json),
+  );
+  return parsed;
 }

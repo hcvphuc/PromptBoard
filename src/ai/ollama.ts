@@ -50,7 +50,8 @@ export class OllamaProvider implements AIProvider {
           model: this.model,
           messages,
           temperature: 0.7,
-          max_tokens: 4096,
+          max_tokens: 8192,
+          response_format: { type: 'json_object' },
         }),
       });
 
@@ -70,6 +71,7 @@ export class OllamaProvider implements AIProvider {
         model: this.model,
         messages,
         stream: false,
+        response_format: { type: 'json_object' },
       }),
     });
 

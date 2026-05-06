@@ -16,6 +16,9 @@ import { extensionStorage } from '@/storage/extensionStorage';
 import { runImageGeneration } from '@/imagegen/runImageGen';
 import type { ImageGenState } from '@/types/pipeline';
 import { ImageGenPanel } from '@/components/ImageGenPanel';
+import { logger } from '@/logger/logger';
+import { breakdownShots, breakdownAllShots } from '@/pipeline/breakdownShots';
+import { parseSRT, getSRTDuration } from '@/pipeline/srtParser';
 
 function createProvider(config: AIProviderConfig): AIProvider {
   switch (config.provider) {
@@ -53,6 +56,10 @@ export default function App() {
   const [imageGenRunning, setImageGenRunning] = React.useState(false);
   const [refImages, setRefImages] = React.useState<any[]>([]);
   const [boardImages, setBoardImages] = React.useState<any[]>([]);
+  const [shotBreakdownRunning, setShotBreakdownRunning] = React.useState(false);
+  const [srtContent, setSrtContent] = React.useState<string>('');
+  const [srtFileName, setSrtFileName] = React.useState<string>('');
+  const [audioDuration, setAudioDuration] = React.useState<number>(0);
 
   // Load saved state on mount
   React.useEffect(() => {
@@ -66,27 +73,59 @@ export default function App() {
     })();
   }, []);
 
+  const handleSRTUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = parseSRT(text);
+      const duration = getSRTDuration(lines);
+      setSrtContent(text);
+      setSrtFileName(file.name);
+      setAudioDuration(duration);
+      logger.info('App', 'SRT loaded', `${file.name}: ${lines.length} lines, ${duration.toFixed(1)}s`);
+    } catch (err: any) {
+      setError(`Failed to parse SRT: ${err.message}`);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!script.trim()) return;
+
+    // Validate: audio-driven mode requires SRT
+    if (settings.mode === 'audio-driven' && !srtContent) {
+      setError('Audio-driven mode requires an SRT file. Please upload one.');
+      return;
+    }
 
     setRunning(true);
     setError(null);
     setOutput(null);
 
+    logger.info('App', 'Pipeline started', `Provider: ${providerConfig.provider}, Model: ${providerConfig.model || 'default'}, Mode: ${settings.mode}`);
     const provider = createProvider(providerConfig);
+
+    // Build audio input for audio-driven mode
+    const audioInput = settings.mode === 'audio-driven' && srtContent ? {
+      srtContent,
+      audioDuration,
+    } : undefined;
 
     try {
       const result = await runPipeline(script, settings, provider, (p) => {
         setProgress(p);
-      });
+      }, audioInput);
 
       setOutput(result);
+      logger.info('App', 'Pipeline completed successfully');
 
       // Save to storage
       await extensionStorage.setLastScript(script);
       await extensionStorage.setLastOutput(result);
     } catch (err: any) {
       setError(err.message || 'Pipeline failed');
+      logger.error('App', 'Pipeline failed', err.message || String(err));
     } finally {
       setRunning(false);
       setProgress(null);
@@ -102,6 +141,7 @@ export default function App() {
     if (!output) return;
 
     setImageGenRunning(true);
+    logger.info('App', 'Image generation started', `${output.characters?.length || 0} chars, ${output.locations?.length || 0} locs, ${output.storyboards?.length || 0} boards`);
     setImageGenState({
       phase: 'generating-characters',
       currentItem: '',
@@ -116,12 +156,14 @@ export default function App() {
     try {
       const result = await runImageGeneration(output, (state) => {
         setImageGenState({ ...state });
-      });
+      }, settings);
       setRefImages(result.refImages);
       setBoardImages(result.boardImages);
       setImageGenState((prev) => ({ ...prev, phase: 'done' }));
+      logger.info('App', 'Image generation completed', `${result.refImages.length} refs, ${result.boardImages.length} boards`);
     } catch (err: any) {
       setImageGenState((prev) => ({ ...prev, phase: 'error', errors: [...prev.errors, String(err)] }));
+      logger.error('App', 'Image generation failed', String(err));
     } finally {
       setImageGenRunning(false);
     }
@@ -143,6 +185,58 @@ export default function App() {
         type: 'DOWNLOAD_FILE',
         payload: { dataUrl: img.imageDataUrl, filename },
       });
+    }
+  };
+
+  const handleBreakdownShots = async (boardNumber: number) => {
+    if (!output || shotBreakdownRunning) return;
+    const board = output.storyboards.find(b => b.board_number === boardNumber);
+    if (!board) return;
+
+    setShotBreakdownRunning(true);
+    const provider = createProvider(providerConfig);
+
+    try {
+      const newShots = await breakdownShots(board, output.bible, provider);
+      setOutput(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          storyboards: prev.storyboards.map(b =>
+            b.board_number === boardNumber ? { ...b, shots: newShots } : b
+          ),
+        };
+      });
+      logger.info('App', `Shot breakdown complete for board ${boardNumber}`, `${newShots.length} shots`);
+    } catch (err: any) {
+      logger.error('App', 'Shot breakdown failed', String(err));
+    } finally {
+      setShotBreakdownRunning(false);
+    }
+  };
+
+  const handleBreakdownAllShots = async () => {
+    if (!output || shotBreakdownRunning) return;
+    setShotBreakdownRunning(true);
+    const provider = createProvider(providerConfig);
+
+    try {
+      const results = await breakdownAllShots(output.storyboards, output.bible, provider);
+      setOutput(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          storyboards: prev.storyboards.map(b => {
+            const newShots = results.get(b.board_number);
+            return newShots ? { ...b, shots: newShots } : b;
+          }),
+        };
+      });
+      logger.info('App', 'All shot breakdowns complete', `${results.size} boards processed`);
+    } catch (err: any) {
+      logger.error('App', 'All shot breakdowns failed', String(err));
+    } finally {
+      setShotBreakdownRunning(false);
     }
   };
 
@@ -270,6 +364,38 @@ export default function App() {
             {/* Script Input */}
             <ScriptInput script={script} onChange={setScript} disabled={running} />
 
+            {/* SRT Upload (audio-driven mode only) */}
+            {settings.mode === 'audio-driven' && (
+              <div className="space-y-2">
+                <label className="block text-xs text-secondary font-medium">SRT Subtitles</label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-btn cursor-pointer hover:border-accent/50 transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                    <span className="text-xs text-secondary">{srtFileName || 'Upload .srt file'}</span>
+                    <input
+                      type="file"
+                      accept=".srt"
+                      onChange={handleSRTUpload}
+                      className="hidden"
+                      disabled={running}
+                    />
+                  </label>
+                  {srtFileName && (
+                    <button
+                      onClick={() => { setSrtContent(''); setSrtFileName(''); setAudioDuration(0); }}
+                      className="text-xs text-secondary hover:text-accent transition-colors"
+                      title="Remove SRT"
+                    >✕</button>
+                  )}
+                </div>
+                {audioDuration > 0 && (
+                  <div className="text-xs text-secondary">
+                    Duration: <span className="text-accent font-medium">{Math.floor(audioDuration / 60)}m {(audioDuration % 60).toFixed(1)}s</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Settings */}
             <SettingsPanel settings={settings} onChange={setSettings} disabled={running} />
 
@@ -310,7 +436,7 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} />
+          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} shotBreakdownRunning={shotBreakdownRunning} />
         )}
       </div>
 

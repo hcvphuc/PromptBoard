@@ -67,27 +67,30 @@ export function exportMarkdown(output: ProjectOutput): string {
       lines.push(`- Emotion: ${s.emotion}`);
       lines.push(`- Audio: ${s.dialogue_audio}\n`);
     });
-    lines.push(`**Image Prompt:** ${b.image_generation_prompt}\n`);
+    lines.push(`**Storyboard Prompt:** ${b.storyboard_prompt}\n`);
+    // Shot master prompts (if available from breakdown)
+    const shotsWithMaster = b.shots.filter(s => s.master_prompt);
+    if (shotsWithMaster.length > 0) {
+      lines.push('**Shot Prompts:**\n');
+      shotsWithMaster.forEach(s => {
+        lines.push(`- Shot ${s.shot_number}: ${s.master_prompt}`);
+      });
+      lines.push('');
+    }
   });
 
-  // Seedance
-  lines.push('## Seedance Prompts\n');
+  // Board Prompts (formerly Seedance)
+  lines.push('## Board Prompts\n');
   if (Array.isArray(output.seedance)) {
     output.seedance.forEach((s: any) => {
       lines.push(`### Board ${s.board_number} (${s.duration}s)\n`);
-      lines.push(`**Scene Setup:** ${s.scene_setup}`);
-      lines.push(`**Action Timeline:** ${s.action_timeline}`);
-      lines.push(`**Camera Movement:** ${s.camera_movement}`);
-      lines.push(`**Motion:** ${s.motion}`);
+      lines.push(`**Board Prompt:** ${s.board_prompt}`);
       lines.push(`**Negative Prompt:** ${s.negative_prompt}\n`);
     });
   } else {
     const s = output.seedance as any;
     lines.push(`### Continuous Scene (${s.total_duration}s)\n`);
-    lines.push(`**Scene Description:** ${s.scene_description}`);
-    lines.push(`**Action Timeline:** ${s.action_timeline}`);
-    lines.push(`**Camera Movement:** ${s.camera_movement}`);
-    lines.push(`**Motion:** ${s.motion}`);
+    lines.push(`**Master Prompt:** ${s.master_prompt}`);
     lines.push(`**Negative Prompt:** ${s.negative_prompt}\n`);
   }
 

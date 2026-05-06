@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PipelineSettings } from '@/types/project';
-import { STYLE_PRESETS, ASPECT_RATIOS, LANGUAGES, SEEDANCE_MODES } from '@/types/project';
+import { STYLE_PRESETS, ASPECT_RATIOS, LANGUAGES, SEEDANCE_MODES, PIPELINE_MODES } from '@/types/project';
 
 interface SettingsPanelProps {
   settings: PipelineSettings;
@@ -16,6 +16,28 @@ export function SettingsPanel({ settings, onChange, disabled }: SettingsPanelPro
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-secondary">Settings</h3>
+
+      {/* Pipeline Mode */}
+      <div>
+        <label className="block text-xs text-secondary mb-1">Pipeline Mode</label>
+        <div className="grid grid-cols-2 gap-2">
+          {PIPELINE_MODES.map((m) => (
+            <button
+              key={m.value}
+              onClick={() => update('mode', m.value)}
+              disabled={disabled}
+              className={`px-3 py-2 text-xs rounded-btn border transition-colors text-left ${
+                settings.mode === m.value
+                  ? 'bg-accent/20 border-accent text-primary'
+                  : 'bg-card border-border text-secondary hover:text-primary hover:bg-border'
+              } disabled:opacity-50`}
+            >
+              <div className="font-semibold">{m.label}</div>
+              <div className="text-secondary/70 mt-0.5">{m.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -94,6 +116,33 @@ export function SettingsPanel({ settings, onChange, disabled }: SettingsPanelPro
               {m.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs text-secondary mb-1">Send Delay (anti-spam)</label>
+        <p className="text-xs text-secondary/70 mb-2">Random delay between each ChatGPT send</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={settings.sendDelayMin}
+            onChange={(e) => update('sendDelayMin', Math.max(1, Number(e.target.value)))}
+            disabled={disabled}
+            className="w-16 bg-card border border-border rounded-btn px-2 py-1 text-primary text-xs text-center disabled:opacity-50"
+          />
+          <span className="text-xs text-secondary">to</span>
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={settings.sendDelayMax}
+            onChange={(e) => update('sendDelayMax', Math.max(1, Number(e.target.value)))}
+            disabled={disabled}
+            className="w-16 bg-card border border-border rounded-btn px-2 py-1 text-primary text-xs text-center disabled:opacity-50"
+          />
+          <span className="text-xs text-secondary">sec</span>
         </div>
       </div>
     </div>

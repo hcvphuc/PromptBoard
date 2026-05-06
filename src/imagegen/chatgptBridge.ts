@@ -6,43 +6,82 @@ export interface ChatGPTMessageResult {
   error?: string;
   imageUrl?: string;
   imageDataUrl?: string;
+  conversationUrl?: string;
 }
 
 let chatgptTabId: number | null = null;
+let lastConversationUrl: string | null = null;
+let isNewChatSession: boolean = true; // Start fresh — new chat for first prompt of each batch
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Ensure a ChatGPT tab is open and content script is injected */
+/** Ensure a ChatGPT tab is open. If isNewChatSession, opens a new chat. Otherwise reuses existing conversation. */
 async function ensureChatGPTTab(): Promise<number> {
-  // Try to find existing tab
-  const tabs = await chrome.tabs.query({ url: 'https://chatgpt.com/*' });
+  // If we need a fresh chat, always open a new one
+  if (isNewChatSession) {
+    // Close existing tab if we had one (optional — just open new)
+    const newTab = await chrome.tabs.create({ url: 'https://chatgpt.com/', active: true });
+    chatgptTabId = newTab.id!;
+    lastConversationUrl = null;
+    isNewChatSession = false; // Next calls in this batch reuse the conversation
+    await waitForTabLoad(chatgptTabId);
+    await sleep(3000); // React hydration
+    return chatgptTabId;
+  }
 
-  if (tabs.length > 0) {
-    chatgptTabId = tabs[0].id!;
+  const allTabs = await chrome.tabs.query({ url: 'https://chatgpt.com/*' });
+
+  if (allTabs.length > 0) {
+    // Priority 1: If we have a saved conversation URL, find or navigate to it
+    if (lastConversationUrl) {
+      const convTab = allTabs.find(t => t.url === lastConversationUrl);
+      if (convTab) {
+        chatgptTabId = convTab.id!;
+        await chrome.tabs.update(chatgptTabId, { active: true });
+        return chatgptTabId;
+      }
+
+      // Navigate the first available tab to our conversation
+      chatgptTabId = allTabs[0].id!;
+      await chrome.tabs.update(chatgptTabId, { active: true, url: lastConversationUrl });
+      await waitForTabLoad(chatgptTabId);
+      await sleep(3000); // React hydration
+      return chatgptTabId;
+    }
+
+    // No conversation yet — use whichever tab is available (prefer active)
+    const activeTab = allTabs.find(t => t.active);
+    chatgptTabId = (activeTab || allTabs[0]).id!;
     await chrome.tabs.update(chatgptTabId, { active: true });
     return chatgptTabId;
   }
 
-  // Open new tab
+  // No ChatGPT tab at all — open new one
   const newTab = await chrome.tabs.create({ url: 'https://chatgpt.com/', active: true });
   chatgptTabId = newTab.id!;
+  await waitForTabLoad(chatgptTabId);
+  await sleep(3000); // React hydration
+  return chatgptTabId;
+}
 
-  // Wait for page load
-  await new Promise<void>((resolve) => {
-    function listener(tabId: number, changeInfo: chrome.tabs.TabChangeInfo) {
-      if (tabId === chatgptTabId && changeInfo.status === 'complete') {
+/** Wait for tab to finish loading */
+function waitForTabLoad(tabId: number): Promise<void> {
+  return new Promise((resolve) => {
+    function listener(updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
         chrome.tabs.onUpdated.removeListener(listener);
         resolve();
       }
     }
     chrome.tabs.onUpdated.addListener(listener);
+    // Timeout fallback
+    setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    }, 15000);
   });
-
-  // Wait for React hydration
-  await sleep(3000);
-  return chatgptTabId;
 }
 
 /** Inject content script if not already injected */
@@ -76,6 +115,32 @@ function sendMessageToTab(tabId: number, message: any, timeoutMs = 180000): Prom
   });
 }
 
+/** Save conversation URL from content script response */
+function captureConversationUrl(result: any): void {
+  if (result?.conversationUrl) {
+    lastConversationUrl = result.conversationUrl;
+  }
+  // Also check current tab URL
+  if (chatgptTabId) {
+    chrome.tabs.get(chatgptTabId, (tab) => {
+      if (tab.url?.includes('/c/')) {
+        lastConversationUrl = tab.url;
+      }
+    });
+  }
+}
+
+/** Reset content script state after timeout/error */
+async function resetContentScriptState(tabId: number): Promise<void> {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'RESET_STATE' }, () => {
+      if (chrome.runtime.lastError) { /* ignore */ }
+    });
+  } catch {
+    // Ignore — tab may be closed
+  }
+}
+
 /** Generate a single image via ChatGPT "Create image" flow */
 export async function generateImage(prompt: string): Promise<ChatGPTMessageResult> {
   try {
@@ -85,7 +150,9 @@ export async function generateImage(prompt: string): Promise<ChatGPTMessageResul
     const response = await sendMessageToTab(tabId, {
       type: 'GENERATE_IMAGE',
       text: prompt,
-    });
+    }, 300000); // 5 min timeout
+
+    captureConversationUrl(response);
 
     return {
       success: response?.success ?? false,
@@ -93,11 +160,14 @@ export async function generateImage(prompt: string): Promise<ChatGPTMessageResul
       imageUrl: response?.imageUrl,
     };
   } catch (err: any) {
+    if (String(err).includes('timeout')) {
+      await resetContentScriptState(chatgptTabId!);
+    }
     return { success: false, error: String(err) };
   }
 }
 
-/** Generate image with reference images pasted into chat */
+/** Generate image with reference images dropped into chat */
 export async function generateImageWithRefs(
   prompt: string,
   refImageDataUrls: string[]
@@ -110,7 +180,9 @@ export async function generateImageWithRefs(
       type: 'GENERATE_IMAGE_WITH_REFS',
       text: prompt,
       refImages: refImageDataUrls,
-    });
+    }, 600000); // 10 min timeout for refs (slower)
+
+    captureConversationUrl(response);
 
     return {
       success: response?.success ?? false,
@@ -118,6 +190,9 @@ export async function generateImageWithRefs(
       imageUrl: response?.imageUrl,
     };
   } catch (err: any) {
+    if (String(err).includes('timeout')) {
+      await resetContentScriptState(chatgptTabId!);
+    }
     return { success: false, error: String(err) };
   }
 }
@@ -139,23 +214,9 @@ export async function downloadImageAsDataUrl(imageUrl: string): Promise<string |
   }
 }
 
-/** Start a new chat in ChatGPT (navigate to fresh conversation) */
-export async function startNewChat(): Promise<void> {
-  try {
-    const tabId = await ensureChatGPTTab();
-    // Navigate to new chat
-    await chrome.tabs.update(tabId, { url: 'https://chatgpt.com/' });
-    await new Promise<void>((resolve) => {
-      function listener(tabId_: number, changeInfo: chrome.tabs.TabChangeInfo) {
-        if (tabId_ === tabId && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener);
-          resolve();
-        }
-      }
-      chrome.tabs.onUpdated.addListener(listener);
-    });
-    await sleep(3000); // React hydration
-  } catch (err) {
-    console.warn('[PromptBoard] Start new chat failed:', err);
-  }
+/** Start a new ChatGPT conversation for the next batch of prompts.
+ *  Call this before starting a new image generation batch. */
+export function startNewChatSession(): void {
+  isNewChatSession = true;
+  lastConversationUrl = null;
 }

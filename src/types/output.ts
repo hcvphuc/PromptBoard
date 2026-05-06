@@ -13,7 +13,7 @@ export interface ProjectOutput {
   boardImages?: BoardImage[];
 }
 
-export type OutputTab = 'analysis' | 'bible' | 'characters' | 'locations' | 'storyboards' | 'seedance' | 'export';
+export type OutputTab = 'analysis' | 'bible' | 'characters' | 'locations' | 'storyboards' | 'shot-prompts' | 'board-prompts' | 'export' | 'logs';
 
 export const OUTPUT_TABS: { key: OutputTab; label: string }[] = [
   { key: 'analysis', label: 'Analysis' },
@@ -21,6 +21,8 @@ export const OUTPUT_TABS: { key: OutputTab; label: string }[] = [
   { key: 'characters', label: 'Characters' },
   { key: 'locations', label: 'Locations' },
   { key: 'storyboards', label: 'Storyboards' },
-  { key: 'seedance', label: 'Seedance' },
+  { key: 'shot-prompts', label: 'Shot Prompts' },
+  { key: 'board-prompts', label: 'Board Prompts' },
   { key: 'export', label: 'Export' },
+  { key: 'logs', label: '📋 Logs' },
 ];

@@ -3,7 +3,7 @@ import type { ProjectOutput } from '@/types/output';
 import type { AIProvider } from '@/ai/provider';
 import { SYSTEM_PROMPT } from '@/ai/provider';
 import { getMockConsistency } from '@/ai/mock';
-import { extractJSON } from '@/ai/extractJSON';
+import { generateWithRetry } from '@/ai/generateWithRetry';
 
 export async function validateConsistency(
   output: Partial<ProjectOutput>,
@@ -29,6 +29,14 @@ Return a JSON object with:
 
 Return ONLY valid JSON, no other text. No markdown code blocks.`;
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  return extractJSON<ConsistencyReport>(response);
+  const parsed = await generateWithRetry<ConsistencyReport>(
+    provider, prompt, SYSTEM_PROMPT,
+    (json) => json as ConsistencyReport,
+  );
+
+  // Ensure structure is complete — AI may omit issues array
+  return {
+    passed: parsed?.passed ?? false,
+    issues: Array.isArray(parsed?.issues) ? parsed.issues : [],
+  };
 }

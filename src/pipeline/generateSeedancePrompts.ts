@@ -1,9 +1,10 @@
 import type { SeedancePromptPerBoard, SeedancePromptContinuous, StoryboardBoard, ProductionBible } from '@/types/pipeline';
 import type { AIProvider } from '@/ai/provider';
 import type { PipelineSettings } from '@/types/project';
+import { STYLE_DICTIONARY } from '@/types/project';
 import { SYSTEM_PROMPT } from '@/ai/provider';
 import { getMockSeedancePerBoard, getMockSeedanceContinuous } from '@/ai/mock';
-import { extractJSON } from '@/ai/extractJSON';
+import { generateWithRetry } from '@/ai/generateWithRetry';
 import { unwrapArray } from '@/ai/unwrapArray';
 
 export async function generateSeedancePrompts(
@@ -31,7 +32,10 @@ async function generatePerBoard(
   settings: PipelineSettings,
   provider: AIProvider
 ): Promise<SeedancePromptPerBoard[]> {
-  const prompt = `Generate Seedance video prompts for each storyboard board. Style: ${settings.stylePreset}. Max duration per board: ${settings.boardDuration}s. Language: ${settings.language}.
+  const styleDict = STYLE_DICTIONARY[settings.stylePreset];
+  const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
+
+  const prompt = `Generate a single unified video prompt for each storyboard board. Style: ${settings.stylePreset}. ${styleBlock} Max duration per board: ${settings.boardDuration}s. Language: ${settings.language}.
 
 Storyboards:
 ${JSON.stringify(storyboards, null, 2)}
@@ -42,17 +46,27 @@ ${JSON.stringify(bible, null, 2)}
 For each board, return a JSON object with:
 - board_number: number
 - duration: number
-- scene_setup: string (complete scene description maintaining character identity, wardrobe, location, lighting from bible)
-- action_timeline: string (timestamped action: 0-5s: ..., 5-10s: ..., 10-15s: ...)
-- camera_movement: string (detailed camera direction)
-- motion: string (detailed motion description)
+- board_prompt: string (ONE unified prompt combining scene setup, action timeline, camera movement, and motion into a single flowing paragraph — this is the complete prompt you would paste into a video generation tool like Seedance, Figure, or Kling)
 - negative_prompt: string (what to avoid: blurry, low quality, wrong wardrobe, wrong location, lighting inconsistency, etc.)
 
-Return a JSON ARRAY of Seedance prompt objects. ONLY valid JSON, no other text. No markdown code blocks.`;
+BOARD PROMPT RULES:
+- board_prompt must be a SINGLE unified paragraph — no sections, no line breaks, no bullet points
+- Combine scene setup, action, camera, and motion into one flowing description
+- Must maintain character identity, wardrobe, location, and lighting from the bible
+- Include specific camera movements (e.g. "slow dolly left", "push in to close-up")
+- Include specific actions and emotions (e.g. "Nala looks up, pauses, hands trembling")
+- Include atmosphere and lighting (e.g. "harsh fluorescent light cutting across the counter")
+- Start with the scene description, flow into action, then camera
+- Example: "Interior convenience store checkout lane, harsh fluorescent overhead lighting, teal/orange color palette. Nala stands behind the brushed-steel counter in blue polyester vest, hair in a tight bun. An elderly man in a frayed charcoal wool coat approaches with a loaf of bread and bottle of milk. Camera slowly pushes in from medium to close-up as his trembling hands place dull copper coins on the metal counter. Nala watches, face neutral, then her eyes widen slightly. Shallow depth of field, cinematic grain. Style: cinematic."
+- End with: "Style: ${settings.stylePreset}."
+- Include style keywords: ${styleBlock}
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  const parsed = extractJSON<SeedancePromptPerBoard[]>(response);
-  return unwrapArray<SeedancePromptPerBoard>(parsed);
+Return a JSON ARRAY. ONLY valid JSON, no other text. No markdown code blocks.`;
+
+  return generateWithRetry<SeedancePromptPerBoard[]>(
+    provider, prompt, SYSTEM_PROMPT,
+    (json) => unwrapArray<SeedancePromptPerBoard>(json),
+  );
 }
 
 async function generateContinuous(
@@ -62,8 +76,10 @@ async function generateContinuous(
   provider: AIProvider
 ): Promise<SeedancePromptContinuous> {
   const totalDuration = storyboards.reduce((sum, b) => sum + b.duration, 0);
+  const styleDict = STYLE_DICTIONARY[settings.stylePreset];
+  const styleBlock = styleDict ? `${styleDict.positive}. ${styleDict.negative}.` : '';
 
-  const prompt = `Generate a single continuous Seedance video prompt from the storyboard boards. Style: ${settings.stylePreset}. Total duration: ${totalDuration}s. Language: ${settings.language}.
+  const prompt = `Generate a single continuous video prompt from the storyboard boards. Style: ${settings.stylePreset}. ${styleBlock} Total duration: ${totalDuration}s. Language: ${settings.language}.
 
 Storyboards:
 ${JSON.stringify(storyboards, null, 2)}
@@ -80,14 +96,23 @@ CRITICAL CONTINUOUS SCENE RULES:
 
 Return a JSON object with:
 - total_duration: number (${totalDuration})
-- scene_description: string (unified scene description maintaining all visual continuity)
-- action_timeline: string (timestamped: "0-15s: ..., 15-30s: ..., 30-45s: ..., 45-60s: ...")
-- camera_movement: string (continuous camera direction across all boards)
-- motion: string (detailed motion throughout)
+- master_prompt: string (ONE unified paragraph combining scene description, action timeline, camera direction, and motion — this is the complete prompt you would paste into a video generation tool like Seedance, Figure, or Kling. Must be a single flowing paragraph with no sections or bullet points.)
 - negative_prompt: string (must include: camera equipment visible, scene reset, character identity change, wardrobe change, lighting inconsistency, location change)
+
+MASTER PROMPT RULES:
+- Must be a SINGLE unified paragraph — no sections, no line breaks, no bullet points
+- Flow naturally: scene → action → camera → transitions
+- Must maintain character identity and wardrobe throughout
+- Must include specific camera movements and transitions between boards
+- Must include specific actions and emotional beats with timing
+- Include atmosphere and lighting
+- End with: "Style: ${settings.stylePreset}."
+- Include style keywords: ${styleBlock}
 
 Return ONLY valid JSON, no other text. No markdown code blocks.`;
 
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
-  return extractJSON<SeedancePromptContinuous>(response);
+  return generateWithRetry<SeedancePromptContinuous>(
+    provider, prompt, SYSTEM_PROMPT,
+    (json) => json as SeedancePromptContinuous,
+  );
 }
