@@ -26,10 +26,15 @@ function buildGridLabel(shotCount: number): string {
   return `${Math.ceil(shotCount / 4)}x4`;
 }
 
-/** Post-validate: if storyboard_prompt doesn't match shot count, rebuild it from shots data */
+/** Post-validate: ensure storyboard_prompt matches shot count, fix missing fields */
 function validateStoryboardPrompt(board: StoryboardBoard, styleBlock: string, aspectRatio: string): StoryboardBoard {
+  // Ensure shots array exists
+  if (!board.shots || !Array.isArray(board.shots) || board.shots.length === 0) {
+    console.warn('[PromptBoard] Board', board.board_number, 'has no shots, skipping prompt rebuild');
+    return board;
+  }
+
   const shotCount = board.shots.length;
-  if (shotCount === 0) return board;
 
   // Check if prompt already mentions correct panel count
   const prompt = board.storyboard_prompt || '';
@@ -45,8 +50,8 @@ function validateStoryboardPrompt(board: StoryboardBoard, styleBlock: string, as
     return `Panel ${shot.shot_number} (${shot.shot_size}, ${shot.lens_feel}): ${shot.action} ${shot.emotion ? `— ${shot.emotion}` : ''}. ${shot.movement !== 'Static' ? `Camera: ${shot.movement}.` : ''}`;
   }).join(' ');
 
-  const characters = board.characters_used.join(', ');
-  const location = board.location_used;
+  const characters = board.characters_used?.join(', ') || '';
+  const location = board.location_used || '';
 
   const rebuiltPrompt = `Multi-panel cinematic storyboard, ${shotCount} still frames arranged in ${grid} grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. ${panelDescriptions} Characters: ${characters}. Location: ${location}. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. ${styleBlock} Aspect ratio: ${aspectRatio}.`;
 
@@ -167,10 +172,22 @@ CRITICAL RULES:
 
 Return a JSON ARRAY. ONLY valid JSON, no markdown code blocks, no extra text.`;
 
-  const result = await generateWithRetry<StoryboardBoard[]>(
+  const rawResult = await generateWithRetry<StoryboardBoard[]>(
     provider, prompt, SYSTEM_PROMPT_STORYBOARD,
     (json) => unwrapArray<StoryboardBoard>(json),
   );
+
+  // Validate: ensure each board has required fields
+  const result = rawResult.map((board, i) => ({
+    ...board,
+    board_number: board.board_number ?? (i + 1),
+    shots: Array.isArray(board.shots) ? board.shots : [],
+    characters_used: Array.isArray(board.characters_used) ? board.characters_used : [],
+    location_used: board.location_used || '',
+    story_beat: board.story_beat || '',
+    duration: board.duration || settings.boardDuration,
+    storyboard_prompt: board.storyboard_prompt || '',
+  }));
 
   // Post-validate: ensure storyboard_prompt matches shot count for each board
   const validated = result.map(board => validateStoryboardPrompt(board, styleBlock, settings.aspectRatio));
