@@ -99,7 +99,7 @@ async function injectContentScript(tabId: number): Promise<void> {
 }
 
 /** Send message to ChatGPT content script with timeout */
-function sendMessageToTab(tabId: number, message: any, timeoutMs = 180000): Promise<any> {
+function sendMessageToTab(tabId: number, message: any, timeoutMs = 600000): Promise<any> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error('Message timeout'));

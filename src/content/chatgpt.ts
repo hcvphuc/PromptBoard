@@ -215,7 +215,7 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
       if (b2 && !b2.disabled) return b2;
       return null;
     },
-    5000, 'Send button'
+    60000, 'Send button'
   );
   realClick(sendBtn);
 }
@@ -310,7 +310,7 @@ async function generateImageWithRefsFlow(
         if (b2 && !b2.disabled) return b2;
         return null;
       },
-      30000, 'Send button (with refs)'
+      60000, 'Send button (with refs)'
     );
     // STEP 5: Wait for generated image — count baseline before sending
     const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
@@ -668,7 +668,7 @@ async function extractShotsFlow(
         if (b2 && !b2.disabled) return b2;
         return null;
       },
-      30000, 'Send button (extract shots)'
+      60000, 'Send button (extract shots)'
     );
 
     // STEP 5: Wait for multiple generated images

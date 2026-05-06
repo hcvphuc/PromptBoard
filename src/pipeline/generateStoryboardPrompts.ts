@@ -91,22 +91,19 @@ ${isAudioDriven ? '- audio_duration: number (EXACTLY ' + settings.boardDuration 
   - dialogue_audio: string (minimal dialogue or audio description, NOT dominant)${isAudioDriven ? '\n  - start_time: number (seconds, relative to board start)\n  - end_time: number (seconds, relative to board start)' : ''}
 - storyboard_prompt: string (MULTI-PANEL storyboard layout prompt — see rules below)
 
-STORYBOARD PROMPT RULES:
-- storyboard_prompt describes a MULTI-PANEL production storyboard layout showing ALL shots in this board
-- This is a GRID of panels — each panel shows ONE shot from the board
-- The image must look like a professional production storyboard sheet on paper
-- Format: start with "Multi-panel production storyboard layout, [N] panels arranged in a grid,"
-- Then for EACH panel, describe: the shot size, what we see, camera angle, character action/emotion
-- Panels should be numbered ("Panel 1:", "Panel 2:", etc.)
-- Between panels, draw thin arrows or numbers showing the sequence flow
-- All panels must share the SAME character designs, wardrobe, and location (consistency across panels)
-- The overall layout should be clean, professional — like a hand-drawn or sketched storyboard sheet
-- Style: sketch/render hybrid — enough detail to read the shot, but with a storyboard aesthetic (pencil lines, light shading, panel borders)
-- Must include character descriptions and wardrobe from the bible (consistency!)
-- Must include location atmosphere and lighting from the bible
-- Each panel must show: shot size, character pose/expression, key action, camera angle
-- Include: "Production storyboard, panel grid layout, sketch aesthetic, panel borders, thin arrows between panels, ${styleBlock}"
-- Example: "Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Small panel number in corner. Panel 1 (Wide, 14mm): Wide shot establishing the convenience store interior — Nala behind counter, elderly man entering through glass door, fluorescent overhead lighting. Panel 2 (Medium, 35mm): Nala's face looking up, neutral expression, tight bun, blue polyester polo visible. Panel 3 (Close-Up, 85mm): Hands pausing over barcode scanner, item on counter. Panel 4 (Medium, 50mm): Transaction moment — both figures framed across counter, dented watering can visible on shelf. Thin directional arrows between panels. Production storyboard, panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9."
+STORYBOARD PROMPT RULES (CRITICAL — MUST FOLLOW):
+- storyboard_prompt MUST describe a MULTI-PANEL grid layout — NEVER a single panel
+- If the board has N shots, the storyboard MUST have N panels in the grid
+- Grid layout: 2 shots = 1x2, 3 shots = 1x3, 4 shots = 2x2, 5 shots = 2x3 (1 empty), 6 shots = 2x3
+- START the prompt with: "Multi-panel production storyboard layout, [N] panels arranged in a [ROWS]x[COLS] grid on off-white paper."
+- For EACH panel write: "Panel [N] ([shot_size], [lens]): [visual description of what we SEE]"
+- EVERY panel MUST show a DIFFERENT shot — do NOT repeat or merge shots
+- The grid is read left-to-right, top-to-bottom: Panel 1 is top-left, Panel 2 is top-right, etc.
+- Between panels: thin directional arrows showing sequence flow
+- Shared consistency: same character faces/wardrobe, same location across ALL panels
+- Style: production storyboard aesthetic — sketch/render hybrid, panel borders, pencil lines, light shading
+- END with: "Production storyboard, [N]-panel grid layout, sketch aesthetic, panel borders, directional arrows, ${styleBlock}"
+- EXAMPLE (4 shots): "Multi-panel production storyboard layout, 4 panels arranged in 2x2 grid on off-white paper. Panel borders with thin black lines. Panel number in top-left corner of each panel. Panel 1 (Wide, 14mm): Wide shot establishing the convenience store interior — Nala behind counter, elderly man entering through glass door, fluorescent overhead lighting. Panel 2 (Medium, 35mm): Nala's face looking up, neutral expression, tight bun, blue polyester polo visible. Panel 3 (Close-Up, 85mm): Hands pausing over barcode scanner, item on counter. Panel 4 (Medium, 50mm): Transaction moment — both figures framed across counter. Thin directional arrows between panels. Production storyboard, 4-panel grid layout, sketch aesthetic, panel borders, cinematic drama, anamorphic lens, muted teal/orange palette. Style: cinematic. Aspect ratio: 16:9."
 
 CRITICAL RULES:
 - Do NOT illustrate dialogue directly — translate emotion into visuals
