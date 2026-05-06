@@ -12,6 +12,7 @@ const PHASE_LABELS: Record<ImageGenState['phase'], string> = {
   'generating-characters': 'Generating character reference images...',
   'generating-locations': 'Generating location reference images...',
   'generating-boards': 'Generating storyboard images...',
+  'extracting-shots': 'Extracting shots from storyboard images...',
   'downloading': 'Downloading images...',
   'done': '✅ All images generated!',
   'error': '❌ Error occurred',

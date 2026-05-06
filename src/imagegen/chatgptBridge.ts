@@ -5,6 +5,7 @@ export interface ChatGPTMessageResult {
   success: boolean;
   error?: string;
   imageUrl?: string;
+  imageUrls?: string[]; // Multiple images (shot extraction)
   imageDataUrl?: string;
   conversationUrl?: string;
 }
@@ -219,4 +220,40 @@ export async function downloadImageAsDataUrl(imageUrl: string): Promise<string |
 export function startNewChatSession(): void {
   isNewChatSession = true;
   lastConversationUrl = null;
+}
+
+/** Extract shots from a multi-panel storyboard image via ChatGPT.
+ *  Sends the storyboard image + an extract prompt, ChatGPT returns individual shot images.
+ */
+export async function extractShotsFromBoard(
+  storyboardImageUrl: string,
+  shotCount: number,
+  boardNumber: number,
+): Promise<ChatGPTMessageResult> {
+  try {
+    const tabId = await ensureChatGPTTab();
+    await injectContentScript(tabId);
+
+    const extractPrompt = `Extract this multi-panel storyboard into ${shotCount} individual shots in order from left to right, top to bottom. Each shot must be a separate, complete image preserving the exact character designs, wardrobe, and visual style from the original panels. Do not crop or merge panels.`;
+
+    const response = await sendMessageToTab(tabId, {
+      type: 'EXTRACT_SHOTS',
+      text: extractPrompt,
+      refImages: [storyboardImageUrl],
+      expectedCount: shotCount,
+    }, 300000); // 5 min timeout for extraction
+
+    captureConversationUrl(response);
+
+    return {
+      success: response?.success ?? false,
+      error: response?.error,
+      imageUrls: response?.imageUrls,
+    };
+  } catch (err: any) {
+    if (String(err).includes('timeout')) {
+      await resetContentScriptState(chatgptTabId!);
+    }
+    return { success: false, error: String(err) };
+  }
 }

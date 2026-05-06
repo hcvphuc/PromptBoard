@@ -68,6 +68,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'EXTRACT_SHOTS') {
+    if (isRunning) {
+      sendResponse({ success: false, error: 'Already running' });
+      return false;
+    }
+    isRunning = true;
+    runningSince = Date.now();
+    extractShotsFlow(message.text, message.refImages || [], message.expectedCount || 4)
+      .then((result) => sendResponse({ ...result, conversationUrl: window.location.href }))
+      .catch((err) => sendResponse({ success: false, error: String(err) }))
+      .finally(() => { isRunning = false; });
+    return true;
+  }
+
   return false;
 });
 
@@ -548,6 +562,124 @@ async function waitForGeneratedImage(timeoutMs: number, baselineCount?: number):
   }
 
   throw new Error('Timeout waiting for generated image');
+}
+
+// ─── Wait for ChatGPT to generate MULTIPLE images (for shot extraction) ───
+
+async function waitForGeneratedImages(timeoutMs: number, expectedCount: number, baselineCount?: number): Promise<string[]> {
+  const baseline = baselineCount ?? document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
+  const start = Date.now();
+  const targetCount = baseline + expectedCount;
+
+  await sleep(5000);
+
+  while (Date.now() - start < timeoutMs) {
+    const images = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img');
+
+    if (images.length >= targetCount) {
+      const newImages: string[] = [];
+      for (let i = baseline; i < images.length; i++) {
+        const img = images[i] as HTMLImageElement;
+        const src = img.src || img.getAttribute('src');
+        if (src) newImages.push(src);
+      }
+
+      if (newImages.length > 0) {
+        await sleep(2000);
+        return newImages;
+      }
+    }
+
+    await sleep(2000);
+  }
+
+  // Timeout — return whatever new images we have
+  const images = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img');
+  const newImages: string[] = [];
+  for (let i = baseline; i < images.length; i++) {
+    const img = images[i] as HTMLImageElement;
+    const src = img.src || img.getAttribute('src');
+    if (src) newImages.push(src);
+  }
+  if (newImages.length > 0) return newImages;
+
+  throw new Error('Timeout waiting for generated images');
+}
+
+// ─── Extract shots flow: send storyboard image + extract prompt, wait for multiple images ───
+
+async function extractShotsFlow(
+  prompt: string,
+  refImageDataUrls: string[],
+  expectedCount: number,
+): Promise<{ success: boolean; imageUrls?: string[]; error?: string }> {
+  try {
+    // STEP 1: Focus chat input area
+    const inputEl = await waitFor(findChatInput, 10000, 'chat input');
+    inputEl.focus();
+    await sleep(300);
+
+    // STEP 2: Attach reference images (storyboard image)
+    let attached = false;
+
+    if (!attached) {
+      attached = await attachViaClipboard(inputEl, refImageDataUrls);
+    }
+    if (!attached) {
+      attached = await attachViaFileInput(inputEl, refImageDataUrls);
+    }
+    if (!attached) {
+      const dropZone = findDropZone();
+      if (dropZone) {
+        attached = await attachViaDrop(dropZone, refImageDataUrls);
+      }
+    }
+
+    if (!attached) {
+      console.warn('[PromptBoard] All attachment methods failed — extracting without storyboard image');
+    }
+
+    await sleep(3000);
+
+    // STEP 3: Type the extract prompt
+    inputEl.focus();
+    await sleep(200);
+    document.execCommand('selectAll', false);
+    document.execCommand('delete', false);
+    await sleep(50);
+    inputEl.focus();
+    document.execCommand('insertText', false, prompt);
+    await sleep(500);
+
+    if (!(inputEl.textContent || '').trim()) {
+      await navigator.clipboard.writeText(prompt);
+      inputEl.focus();
+      document.execCommand('selectAll', false);
+      document.execCommand('paste', false);
+      await sleep(500);
+    }
+
+    // STEP 4: Click Send
+    const sendBtn = await waitFor(
+      () => {
+        const b1 = document.querySelector('button[data-testid="send-button"]') as HTMLButtonElement | null;
+        if (b1 && !b1.disabled) return b1;
+        const b2 = document.querySelector('button[aria-label="Send prompt"]') as HTMLButtonElement | null;
+        if (b2 && !b2.disabled) return b2;
+        return null;
+      },
+      30000, 'Send button (extract shots)'
+    );
+
+    // STEP 5: Wait for multiple generated images
+    const baseline = document.querySelectorAll('[data-message-author-role="assistant"] img, [class*="message"] img').length;
+    realClick(sendBtn);
+    const imageUrls = await waitForGeneratedImages(300000, expectedCount, baseline);
+
+    return { success: true, imageUrls };
+  } catch (err: any) {
+    return { success: false, error: String(err) };
+  }
 }
 
 // ─── Download image as data URL (runs in ChatGPT tab context to avoid CORS) ───

@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProjectOutput } from '@/types/output';
 import type { OutputTab } from '@/types/output';
 import { OUTPUT_TABS } from '@/types/output';
-import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage, StoryboardShot } from '@/types/pipeline';
+import type { AnalysisOutput, ProductionBible, CharacterPrompt, LocationPrompt, StoryboardBoard, SeedancePromptPerBoard, SeedancePromptContinuous, ConsistencyReport, ReferenceImage, BoardImage, ShotImage, StoryboardShot } from '@/types/pipeline';
 import { CopyButton } from './CopyButton';
 import { PromptCard } from './PromptCard';
 import { SendToChatGPTButton } from './SendToChatGPTButton';
@@ -16,12 +16,15 @@ interface OutputTabsProps {
   onRegenerateTab?: (tab: OutputTab) => void;
   refImages?: ReferenceImage[];
   boardImages?: BoardImage[];
+  shotImages?: ShotImage[];
   onBreakdownShots?: (boardNumber: number) => void;
   onBreakdownAllShots?: () => void;
+  onExtractShots?: () => void;
   shotBreakdownRunning?: boolean;
+  extractingShots?: boolean;
 }
 
-export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [], onBreakdownShots, onBreakdownAllShots, shotBreakdownRunning }: OutputTabsProps) {
+export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [], shotImages = [], onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots }: OutputTabsProps) {
   const [activeTab, setActiveTab] = React.useState<OutputTab>('analysis');
 
   return (
@@ -49,7 +52,7 @@ export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImage
         {activeTab === 'bible' && <ProductionBibleView bible={output.bible} />}
         {activeTab === 'characters' && <CharactersTab data={output.characters} refImages={refImages.filter(r => r.type === 'character')} />}
         {activeTab === 'locations' && <LocationsTab data={output.locations} refImages={refImages.filter(r => r.type === 'location')} />}
-        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} onBreakdownShots={onBreakdownShots} onBreakdownAllShots={onBreakdownAllShots} shotBreakdownRunning={shotBreakdownRunning} />}
+        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={onBreakdownShots} onBreakdownAllShots={onBreakdownAllShots} onExtractShots={onExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />}
         {activeTab === 'shot-prompts' && <ShotPromptsTab data={output.storyboards} />}
         {activeTab === 'board-prompts' && <BoardPromptsTab data={output.seedance} />}
         {activeTab === 'export' && <ExportTab output={output} />}
@@ -222,7 +225,7 @@ function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: 
   );
 }
 
-function StoryboardsTab({ data, boardImages, onBreakdownShots, onBreakdownAllShots, shotBreakdownRunning }: { data: StoryboardBoard[]; boardImages: BoardImage[]; onBreakdownShots?: (boardNumber: number) => void; onBreakdownAllShots?: () => void; shotBreakdownRunning?: boolean; }) {
+function StoryboardsTab({ data, boardImages, shotImages, onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots }: { data: StoryboardBoard[]; boardImages: BoardImage[]; shotImages: ShotImage[]; onBreakdownShots?: (boardNumber: number) => void; onBreakdownAllShots?: () => void; onExtractShots?: () => void; shotBreakdownRunning?: boolean; extractingShots?: boolean; }) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -247,6 +250,20 @@ function StoryboardsTab({ data, boardImages, onBreakdownShots, onBreakdownAllSho
             title="Break down all boards into detailed cinematic shots"
           >
             🎬 Breakdown All
+          </button>
+        )}
+        {onExtractShots && (
+          <button
+            onClick={onExtractShots}
+            disabled={extractingShots || boardImages.length === 0}
+            className={`px-3 py-1 text-xs rounded-btn border transition-colors ${
+              extractingShots
+                ? 'border-border bg-card text-secondary cursor-not-allowed'
+                : 'border-green-500/50 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+            }`}
+            title="Extract individual shots from storyboard multi-panel images via ChatGPT"
+          >
+            🎯 Extract Shots
           </button>
         )}
         <SendToChatGPTButton text={allStoryboardText} label="📊 Send All to ChatGPT" />
@@ -310,6 +327,27 @@ function StoryboardsTab({ data, boardImages, onBreakdownShots, onBreakdownAllSho
                   alt={`Board ${board.board_number}`}
                   className="w-full rounded border border-border"
                 />
+              </div>
+            );
+          })()}
+          {(() => {
+            const boardShotImages = shotImages.filter(s => s.boardNumber === board.board_number);
+            if (boardShotImages.length === 0) return null;
+            return (
+              <div className="mt-2 space-y-1">
+                <h5 className="text-xs font-semibold text-green-400">Extracted Shots</h5>
+                <div className="grid grid-cols-2 gap-2">
+                  {boardShotImages.map(s => (
+                    <div key={s.shotNumber} className="space-y-1">
+                      <img
+                        src={s.imageDataUrl}
+                        alt={`Board ${s.boardNumber} Shot ${s.shotNumber}`}
+                        className="w-full rounded border border-border"
+                      />
+                      <p className="text-xs text-secondary text-center">Shot {s.shotNumber}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })()}

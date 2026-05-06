@@ -2,9 +2,9 @@
 // Sequential: Characters → Locations → Boards
 
 import type { ProjectOutput } from '@/types/output';
-import type { ReferenceImage, BoardImage, ImageGenState } from '@/types/pipeline';
+import type { ReferenceImage, BoardImage, ShotImage, ImageGenState } from '@/types/pipeline';
 import type { PipelineSettings } from '@/types/project';
-import { generateImage, generateImageWithRefs, downloadImageAsDataUrl, startNewChatSession } from './chatgptBridge';
+import { generateImage, generateImageWithRefs, downloadImageAsDataUrl, startNewChatSession, extractShotsFromBoard } from './chatgptBridge';
 import { logger } from '@/logger/logger';
 
 export type ImageGenProgressCallback = (state: ImageGenState) => void;
@@ -45,6 +45,7 @@ export async function runImageGeneration(
       completedSteps,
       refImages: [...refImages],
       boardImages: [...boardImages],
+      shotImages: [],
       errors: [...errors],
     });
   };
@@ -346,4 +347,124 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+}
+
+/** Extract shots from storyboard multi-panel images via ChatGPT.
+ *  Sends each board image + extract prompt → ChatGPT returns individual shot images.
+ */
+export async function extractShotsFromBoards(
+  output: ProjectOutput,
+  boardImages: BoardImage[],
+  onProgress?: (state: ImageGenState) => void,
+): Promise<{ shotImages: ShotImage[]; errors: string[] }> {
+  const storyboards = output.storyboards || [];
+  const shotImages: ShotImage[] = [];
+  const errors: string[] = [];
+
+  const totalSteps = storyboards.length;
+  let completedSteps = 0;
+
+  const emit = (currentItem: string) => {
+    onProgress?.({
+      phase: 'extracting-shots',
+      currentItem,
+      progress: totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
+      totalSteps,
+      completedSteps,
+      refImages: [],
+      boardImages: [],
+      shotImages: [...shotImages],
+      errors: [...errors],
+    });
+  };
+
+  for (const board of storyboards) {
+    const label = `Board ${board.board_number}`;
+    emit(label);
+
+    // Find the board image
+    const boardImg = boardImages.find(b => b.boardNumber === board.board_number);
+    if (!boardImg) {
+      errors.push(`${label}: no storyboard image found — run Image Gen first`);
+      logger.warn('ShotExtract', `No board image for ${label}`);
+      completedSteps++;
+      continue;
+    }
+
+    const shotCount = board.shots.length;
+    if (shotCount === 0) {
+      errors.push(`${label}: no shots defined — run Breakdown first`);
+      logger.warn('ShotExtract', `No shots for ${label}`);
+      completedSteps++;
+      continue;
+    }
+
+    try {
+      logger.info('ShotExtract', `Extracting ${shotCount} shots from ${label}`);
+
+      const result = await extractShotsFromBoard(boardImg.imageDataUrl, shotCount, board.board_number);
+
+      if (result.success && result.imageUrls && result.imageUrls.length > 0) {
+        // Download each shot image
+        for (let i = 0; i < result.imageUrls.length; i++) {
+          const shot = board.shots[i];
+          if (!shot) break;
+
+          const url = result.imageUrls[i];
+          let savedUrl = false;
+
+          // Try download as data URL
+          const dataUrl = await downloadImageAsDataUrl(url);
+          if (dataUrl) {
+            shotImages.push({
+              boardNumber: board.board_number,
+              shotNumber: shot.shot_number,
+              imageDataUrl: dataUrl,
+              prompt: shot.master_prompt || '',
+            });
+            savedUrl = true;
+          }
+
+          // Fallback: fetch directly
+          if (!savedUrl) {
+            try {
+              const resp = await fetch(url);
+              const blob = await resp.blob();
+              const base64 = await blobToDataUrl(blob);
+              shotImages.push({
+                boardNumber: board.board_number,
+                shotNumber: shot.shot_number,
+                imageDataUrl: base64,
+                prompt: shot.master_prompt || '',
+              });
+              savedUrl = true;
+            } catch {
+              logger.warn('ShotExtract', `All download methods failed for shot ${shot.shot_number}, saving URL directly`);
+              shotImages.push({
+                boardNumber: board.board_number,
+                shotNumber: shot.shot_number,
+                imageDataUrl: url,
+                prompt: shot.master_prompt || '',
+              });
+              savedUrl = true;
+            }
+          }
+        }
+        logger.info('ShotExtract', `Extracted ${result.imageUrls.length} shots from ${label}`);
+      } else {
+        errors.push(`${label}: ${result.error || 'shot extraction failed'}`);
+        logger.error('ShotExtract', `Failed: ${label}`, result.error || 'extraction failed');
+      }
+    } catch (err: any) {
+      errors.push(`${label}: ${String(err)}`);
+      logger.error('ShotExtract', `Error: ${label}`, String(err));
+    }
+
+    completedSteps++;
+    emit(label);
+    await randomDelay(5, 15);
+  }
+
+  logger.info('ShotExtract', 'Shot extraction complete', `${shotImages.length} shots, ${errors.length} errors`);
+  return { shotImages, errors };
 }

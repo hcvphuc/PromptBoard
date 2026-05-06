@@ -144,6 +144,14 @@ export interface BoardImage {
   prompt: string;
 }
 
+// Shot image extracted from storyboard multi-panel image
+export interface ShotImage {
+  boardNumber: number;
+  shotNumber: number;
+  imageDataUrl: string; // data:image/png;base64,... or URL
+  prompt: string; // the extract/shot prompt used
+}
+
 // Log entry for the Logs tab
 export interface LogEntry {
   id: string;
@@ -156,12 +164,13 @@ export interface LogEntry {
 
 // Image generation run state
 export interface ImageGenState {
-  phase: 'idle' | 'generating-characters' | 'generating-locations' | 'generating-boards' | 'downloading' | 'done' | 'error';
+  phase: 'idle' | 'generating-characters' | 'generating-locations' | 'generating-boards' | 'extracting-shots' | 'downloading' | 'done' | 'error';
   currentItem: string;
   progress: number; // 0-100
   totalSteps: number;
   completedSteps: number;
   refImages: ReferenceImage[];
   boardImages: BoardImage[];
+  shotImages: ShotImage[];
   errors: string[];
 }

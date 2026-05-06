@@ -13,8 +13,8 @@ import { ScriptInput } from '@/components/ScriptInput';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { OutputTabs } from '@/components/OutputTabs';
 import { extensionStorage } from '@/storage/extensionStorage';
-import { runImageGeneration } from '@/imagegen/runImageGen';
-import type { ImageGenState } from '@/types/pipeline';
+import { runImageGeneration, extractShotsFromBoards } from '@/imagegen/runImageGen';
+import type { ImageGenState, ShotImage } from '@/types/pipeline';
 import { ImageGenPanel } from '@/components/ImageGenPanel';
 import { logger } from '@/logger/logger';
 import { breakdownShots, breakdownAllShots } from '@/pipeline/breakdownShots';
@@ -51,12 +51,15 @@ export default function App() {
     completedSteps: 0,
     refImages: [],
     boardImages: [],
+    shotImages: [],
     errors: [],
   });
   const [imageGenRunning, setImageGenRunning] = React.useState(false);
   const [refImages, setRefImages] = React.useState<any[]>([]);
   const [boardImages, setBoardImages] = React.useState<any[]>([]);
+  const [shotImages, setShotImages] = React.useState<ShotImage[]>([]);
   const [shotBreakdownRunning, setShotBreakdownRunning] = React.useState(false);
+  const [extractingShots, setExtractingShots] = React.useState(false);
   const [srtContent, setSrtContent] = React.useState<string>('');
   const [srtFileName, setSrtFileName] = React.useState<string>('');
   const [audioDuration, setAudioDuration] = React.useState<number>(0);
@@ -150,6 +153,7 @@ export default function App() {
       completedSteps: 0,
       refImages: [],
       boardImages: [],
+      shotImages: [],
       errors: [],
     });
 
@@ -237,6 +241,27 @@ export default function App() {
       logger.error('App', 'All shot breakdowns failed', String(err));
     } finally {
       setShotBreakdownRunning(false);
+    }
+  };
+
+  const handleExtractShots = async () => {
+    if (!output || extractingShots || boardImages.length === 0) return;
+    setExtractingShots(true);
+
+    try {
+      const result = await extractShotsFromBoards(output, boardImages, (state) => {
+        setImageGenState(state);
+      });
+      setShotImages(prev => [...prev, ...result.shotImages]);
+      logger.info('App', 'Shot extraction complete', `${result.shotImages.length} shots, ${result.errors.length} errors`);
+      if (result.errors.length > 0) {
+        logger.warn('App', 'Shot extraction errors', result.errors.join('; '));
+      }
+    } catch (err: any) {
+      logger.error('App', 'Shot extraction failed', String(err));
+    } finally {
+      setExtractingShots(false);
+      setImageGenState(prev => ({ ...prev, phase: 'done' }));
     }
   };
 
@@ -436,7 +461,7 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} shotBreakdownRunning={shotBreakdownRunning} />
+          <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} onExtractShots={handleExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />
         )}
       </div>
 
