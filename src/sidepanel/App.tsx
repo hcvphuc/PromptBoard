@@ -11,12 +11,14 @@ import { OllamaProvider } from '@/ai/ollama';
 import { runPipeline, type PipelineProgress } from '@/pipeline/runPipeline';
 import { ScriptInput } from '@/components/ScriptInput';
 import { SettingsPanel } from '@/components/SettingsPanel';
-import { OutputTabs } from '@/components/OutputTabs';
+import { OutputTabs, type PromptEditAction } from '@/components/OutputTabs';
 import { extensionStorage } from '@/storage/extensionStorage';
 import { saveProjectToFile, readProjectFromFile, saveRecentProject, getRecentProjects, loadStoredProject, deleteStoredProject, getProjectMeta, type ProjectMeta } from '@/storage/projectFile';
 import { runImageGeneration, extractShotsFromBoards } from '@/imagegen/runImageGen';
 import type { ImageGenState, ShotImage } from '@/types/pipeline';
 import { ImageGenPanel } from '@/components/ImageGenPanel';
+import { ImageDropZone } from '@/components/ImageDropZone';
+import { AIChatPanel } from '@/components/AIChatPanel';
 import { ResizableSplit } from '@/components/ResizableSplit';
 import { logger } from '@/logger/logger';
 import { breakdownShots, breakdownAllShots } from '@/pipeline/breakdownShots';
@@ -45,6 +47,7 @@ export default function App() {
   const [error, setError] = React.useState<string | null>(null);
   const [running, setRunning] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
+  const [showAIChat, setShowAIChat] = React.useState(false);
   const [imageGenState, setImageGenState] = React.useState<ImageGenState>({
     phase: 'idle',
     currentItem: '',
@@ -334,6 +337,185 @@ export default function App() {
     }
   };
 
+  // Manual image override: replace auto-generated reference image with manual one
+  const handleOverrideRefImage = (name: string, type: 'character' | 'location', dataUrl: string) => {
+    setRefImages(prev => {
+      const existing = prev.find(r => r.name.toLowerCase() === name.toLowerCase() && r.type === type);
+      if (existing) {
+        return prev.map(r =>
+          r.name.toLowerCase() === name.toLowerCase() && r.type === type
+            ? { ...r, imageDataUrl: dataUrl, isManual: true, autoImageDataUrl: r.autoImageDataUrl || r.imageDataUrl }
+            : r
+        );
+      } else {
+        return [...prev, { name, type, imageDataUrl: dataUrl, prompt: '', isManual: true }];
+      }
+    });
+  };
+
+  const handleRevertRefImage = (name: string, type: 'character' | 'location') => {
+    setRefImages(prev =>
+      prev.map(r =>
+        r.name.toLowerCase() === name.toLowerCase() && r.type === type
+          ? { ...r, imageDataUrl: r.autoImageDataUrl || r.imageDataUrl, isManual: false, autoImageDataUrl: undefined }
+          : r
+      )
+    );
+  };
+
+  const handleOverrideBoardImage = (boardNumber: number, dataUrl: string) => {
+    setBoardImages(prev => {
+      const existing = prev.find(b => b.boardNumber === boardNumber);
+      if (existing) {
+        return prev.map(b =>
+          b.boardNumber === boardNumber
+            ? { ...b, imageDataUrl: dataUrl, isManual: true, autoImageDataUrl: b.autoImageDataUrl || b.imageDataUrl }
+            : b
+        );
+      } else {
+        return [...prev, { boardNumber, imageDataUrl: dataUrl, prompt: '', isManual: true }];
+      }
+    });
+  };
+
+  const handleRevertBoardImage = (boardNumber: number) => {
+    setBoardImages(prev =>
+      prev.map(b =>
+        b.boardNumber === boardNumber
+          ? { ...b, imageDataUrl: b.autoImageDataUrl || b.imageDataUrl, isManual: false, autoImageDataUrl: undefined }
+          : b
+      )
+    );
+  };
+
+  // AI Chat: regenerate handled below
+
+  const handleEditPrompt = (action: PromptEditAction) => {
+    if (!output) return;
+
+    setOutput(prev => {
+      if (!prev) return prev;
+
+      // Deep clone to avoid mutation
+      const next = structuredClone(prev);
+
+      switch (action.type) {
+        case 'character-prompt': {
+          if (next.characters[action.index]) {
+            next.characters[action.index].prompt = action.value;
+          }
+          break;
+        }
+        case 'location-prompt': {
+          if (next.locations[action.index]) {
+            next.locations[action.index].prompt = action.value;
+          }
+          break;
+        }
+        case 'storyboard-prompt': {
+          const board = next.storyboards.find(b => b.board_number === action.boardNumber);
+          if (board) {
+            board.storyboard_prompt = action.value;
+          }
+          break;
+        }
+        case 'shot-master-prompt': {
+          const board2 = next.storyboards.find(b => b.board_number === action.boardNumber);
+          if (board2) {
+            const shot = board2.shots.find(s => s.shot_number === action.shotNumber);
+            if (shot) {
+              shot.master_prompt = action.value;
+            }
+          }
+          break;
+        }
+        case 'seedance-board-prompt': {
+          if (Array.isArray(next.seedance)) {
+            const s = next.seedance.find((s: any) => s.board_number === action.boardNumber);
+            if (s) s.board_prompt = action.value;
+          }
+          break;
+        }
+        case 'seedance-board-negative': {
+          if (Array.isArray(next.seedance)) {
+            const s = next.seedance.find((s: any) => s.board_number === action.boardNumber);
+            if (s) s.negative_prompt = action.value;
+          }
+          break;
+        }
+        case 'seedance-continuous-prompt': {
+          if (!Array.isArray(next.seedance)) {
+            next.seedance.master_prompt = action.value;
+          }
+          break;
+        }
+        case 'seedance-continuous-negative': {
+          if (!Array.isArray(next.seedance)) {
+            next.seedance.negative_prompt = action.value;
+          }
+          break;
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const handleRegenerateImage = async (type: 'character' | 'location' | 'board', identifier: string | number) => {
+    if (!output) return;
+    try {
+      setImageGenState(prev => ({ ...prev, phase: 'generating-characters', currentItem: String(identifier), progress: 0 }));
+
+      let prompt = '';
+      if (type === 'character') {
+        const char = output.characters.find((c: any) => c.character_name === identifier);
+        if (!char) return;
+        prompt = char.prompt;
+      } else if (type === 'location') {
+        const loc = output.locations.find((l: any) => l.location_name === identifier);
+        if (!loc) return;
+        prompt = loc.prompt;
+      } else {
+        const board = output.storyboards.find((b: any) => b.board_number === identifier);
+        if (!board) return;
+        prompt = board.storyboard_prompt;
+      }
+
+      const { generateImage, generateImageWithRefs, downloadImageAsDataUrl } = await import('@/imagegen/chatgptBridge');
+
+      let result;
+      if (type === 'board') {
+        const board = output.storyboards.find((b: any) => b.board_number === identifier);
+        const matchingRefs = refImages.filter(r =>
+          board && (
+            board.characters_used?.some((c: string) => c.toLowerCase() === r.name.toLowerCase()) ||
+            r.name.toLowerCase() === board.location_used?.toLowerCase()
+          )
+        );
+        result = matchingRefs.length > 0
+          ? await generateImageWithRefs(prompt, matchingRefs.map(r => r.imageDataUrl))
+          : await generateImage(prompt);
+      } else {
+        result = await generateImage(prompt);
+      }
+
+      if (result.success && result.imageUrls && result.imageUrls.length > 0) {
+        const dataUrl = await downloadImageAsDataUrl(result.imageUrls[result.imageUrls.length - 1]);
+        if (dataUrl) {
+          if (type === 'board') {
+            handleOverrideBoardImage(identifier as number, dataUrl);
+          } else {
+            handleOverrideRefImage(identifier as string, type, dataUrl);
+          }
+        }
+      }
+
+      setImageGenState(prev => ({ ...prev, phase: 'done' }));
+    } catch (err: any) {
+      setImageGenState(prev => ({ ...prev, phase: 'error', errors: [...prev.errors, String(err)] }));
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-bg">
       {/* Header */}
@@ -385,6 +567,13 @@ export default function App() {
           <span className="text-xs text-secondary">
             {providerConfig.provider === 'mock' ? '🎭 Mock' : providerConfig.provider}
           </span>
+          <button
+            onClick={() => setShowAIChat(!showAIChat)}
+            className={`p-1 rounded-md transition-colors ${showAIChat ? 'text-accent bg-accent/10' : 'text-secondary hover:text-primary hover:bg-card'}`}
+            title="AI Chat - Fix prompts with AI"
+          >
+            💬
+          </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="p-1 rounded-md hover:bg-card text-secondary hover:text-primary transition-colors"
@@ -607,7 +796,7 @@ export default function App() {
           <ResizableSplit
             key="outsplit"
             top={
-              <OutputTabs output={output} onRegenerateTab={handleRegenerate} refImages={refImages} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} onExtractShots={handleExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />
+              <OutputTabs output={output} onRegenerateTab={handleRegenerate} onEditPrompt={handleEditPrompt} refImages={refImages} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={handleBreakdownShots} onBreakdownAllShots={handleBreakdownAllShots} onExtractShots={handleExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} onOverrideRefImage={handleOverrideRefImage} onOverrideBoardImage={handleOverrideBoardImage} onRevertRefImage={handleRevertRefImage} onRevertBoardImage={handleRevertBoardImage} />
             }
             bottom={
               <div className="px-3 py-2 space-y-2">
@@ -635,6 +824,33 @@ export default function App() {
                     state={imageGenState}
                     onCancel={() => { setImageGenRunning(false); setImageGenState((prev) => ({ ...prev, phase: 'idle' })); }}
                     onDownloadAll={handleDownloadAllImages}
+                  />
+                )}
+
+                {/* AI Chat Panel toggle */}
+                <div className="mt-1">
+                  <button
+                    onClick={() => setShowAIChat(!showAIChat)}
+                    className={`px-3 py-1 rounded-btn text-xs font-medium transition-all ${
+                      showAIChat
+                        ? 'bg-accent/20 border border-accent/50 text-accent'
+                        : 'bg-card border border-border text-secondary hover:text-primary hover:border-accent/30'
+                    }`}
+                  >
+                    💬 AI Chat
+                  </button>
+                </div>
+
+                {output && (
+                  <AIChatPanel
+                    visible={showAIChat}
+                    onClose={() => setShowAIChat(false)}
+                    output={output}
+                    refImages={refImages}
+                    boardImages={boardImages}
+                    onEditPrompt={handleEditPrompt}
+                    onRegenerateImage={handleRegenerateImage}
+                    providerConfig={providerConfig}
                   />
                 )}
               </div>

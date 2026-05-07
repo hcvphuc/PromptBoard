@@ -135,6 +135,8 @@ export interface ReferenceImage {
   type: 'character' | 'location';
   imageDataUrl: string; // data:image/png;base64,...
   prompt: string; // the prompt used to generate it
+  isManual?: boolean; // true if manually overridden (not auto-generated)
+  autoImageDataUrl?: string; // saved auto-generated image for revert
 }
 
 // Board image from storyboard generation
@@ -142,6 +144,8 @@ export interface BoardImage {
   boardNumber: number;
   imageDataUrl: string; // data:image/png;base64,...
   prompt: string;
+  isManual?: boolean; // true if manually overridden (not auto-generated)
+  autoImageDataUrl?: string; // saved auto-generated image for revert
 }
 
 // Shot image extracted from storyboard multi-panel image

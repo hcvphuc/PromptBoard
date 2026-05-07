@@ -4,8 +4,8 @@
 export interface ChatGPTMessageResult {
   success: boolean;
   error?: string;
-  imageUrl?: string;
-  imageUrls?: string[]; // Multiple images (shot extraction)
+  imageUrl?: string;      // Kept for backward compat — last image
+  imageUrls?: string[];  // ALL new images from this generation (preferred)
   imageDataUrl?: string;
   conversationUrl?: string;
 }
@@ -142,7 +142,10 @@ async function resetContentScriptState(tabId: number): Promise<void> {
   }
 }
 
-/** Generate a single image via ChatGPT "Create image" flow */
+/** Generate a single image via ChatGPT "Create image" flow.
+ *  Returns ALL new image URLs in `imageUrls` (ChatGPT may return multiple images per prompt).
+ *  `imageUrl` is kept as the last image for backward compat.
+ */
 export async function generateImage(prompt: string): Promise<ChatGPTMessageResult> {
   try {
     const tabId = await ensureChatGPTTab();
@@ -155,10 +158,13 @@ export async function generateImage(prompt: string): Promise<ChatGPTMessageResul
 
     captureConversationUrl(response);
 
+    const imageUrls: string[] = response?.imageUrls || (response?.imageUrl ? [response.imageUrl] : []);
+
     return {
       success: response?.success ?? false,
       error: response?.error,
-      imageUrl: response?.imageUrl,
+      imageUrl: imageUrls.length > 0 ? imageUrls[imageUrls.length - 1] : undefined,
+      imageUrls,
     };
   } catch (err: any) {
     if (String(err).includes('timeout')) {
@@ -168,7 +174,10 @@ export async function generateImage(prompt: string): Promise<ChatGPTMessageResul
   }
 }
 
-/** Generate image with reference images dropped into chat */
+/** Generate image with reference images dropped into chat.
+ *  Returns ALL new image URLs in `imageUrls` (ChatGPT may return multiple images per prompt).
+ *  `imageUrl` is kept as the last image for backward compat.
+ */
 export async function generateImageWithRefs(
   prompt: string,
   refImageDataUrls: string[]
@@ -185,10 +194,13 @@ export async function generateImageWithRefs(
 
     captureConversationUrl(response);
 
+    const imageUrls: string[] = response?.imageUrls || (response?.imageUrl ? [response.imageUrl] : []);
+
     return {
       success: response?.success ?? false,
       error: response?.error,
-      imageUrl: response?.imageUrl,
+      imageUrl: imageUrls.length > 0 ? imageUrls[imageUrls.length - 1] : undefined,
+      imageUrls,
     };
   } catch (err: any) {
     if (String(err).includes('timeout')) {

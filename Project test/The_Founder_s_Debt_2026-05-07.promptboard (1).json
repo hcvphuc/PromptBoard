@@ -1,0 +1,694 @@
+{
+  "version": 1,
+  "savedAt": 1778138098555,
+  "project": {
+    "id": "a8043a40-c2f8-4922-8341-f32ab7de363b",
+    "title": "The Founder's Debt",
+    "script": "\"Please, I only need one more dollar... I will pay it tomorrow, I promise!\" The voice was a dry and fragile rasp that seemed to carry the weight of a thousand winters as the elderly man’s trembling fingers dropped a few worn copper coins onto the cold plastic of the counter. His eyes were filled with a raw and ancient desperation while the cashier, a young and focused Black woman named Nala, watched him with an intensity that suggested she was searching for something deep within his soul.\nBehind the old man, the line of shoppers began to groan with a polished and cruel impatience while several people lifted their phones to record the scene as if his poverty were nothing more than a background prop for their next viral video. A man in a tailored suit standing further back let out a sharp and jagged laugh, mocking the old man for not having the currency to buy a single bottle of milk and a loaf of bread.\nThe store manager, a man named Sterling, walked over with a face that was a mask of cold and calculated arrogance. He didn't look at the old man’s face but instead reached out to push the milk back across the scanner, telling him that Thorne Superstores were a place for patrons and not for beggars who couldn't balance a checkbook. But what no one in that building realized was that the woman behind the register was not just a cashier named Nala. She was Nala Thorne, the billionaire founder of the entire empire, and the man pleading for his life was the person who had saved her when she had nothing. The king had returned to find her mentor, and she was about to show Sterling exactly what happens when you treat a hero like a ghost.\n",
+    "settings": {
+      "stylePreset": "realistic",
+      "aspectRatio": "16:9",
+      "language": "english",
+      "boardDuration": 15,
+      "seedanceMode": "per-board",
+      "sendDelayMin": 5,
+      "sendDelayMax": 30,
+      "mode": "simple"
+    },
+    "output": {
+      "analysis": {
+        "title": "The Founder's Debt",
+        "genre": "Social Drama",
+        "summary": "A billionaire CEO working undercover as a cashier witnesses her manager and wealthy patrons humiliate an elderly man for being short on cash. The tension peaks when she recognizes the man as her former mentor, prompting a shift from observation to corporate retribution.",
+        "emotional_arc": "Desperation -> Cruelty -> Tension -> Impending Justice",
+        "main_characters": [
+          "Nala Thorne",
+          "Elderly Man",
+          "Sterling",
+          "Man in Tailored Suit"
+        ],
+        "main_locations": [
+          "Thorne Superstore Checkout Counter"
+        ],
+        "key_props": [
+          "Worn copper coins",
+          "Bottle of milk",
+          "Loaf of bread",
+          "Barcode scanner",
+          "Smartphones"
+        ],
+        "estimated_duration_seconds": 75,
+        "suggested_boards": 8
+      },
+      "bible": {
+        "visual_style": "High-fidelity cinematic realism with a sharp focus on textural contrasts. The environment is rendered with clinical, corporate precision—stainless steel, polished linoleum, and glass—contrasted against the organic, weathered textures of the Elderly Man's skin and clothing. Shallow depth of field is used during emotional peaks to isolate Nala and her mentor from the bustling, indifferent background. Camera movements are steady and observational, shifting to tight, intimate close-ups during the confrontation.",
+        "color_palette": [
+          "#002D62",
+          "#F5F5F5",
+          "#A9A9A9",
+          "#8B4513",
+          "#E63946",
+          "#212121"
+        ],
+        "lighting": "Motivated by harsh, overhead industrial fluorescents that create a sterile, unforgiving atmosphere. High-key lighting dominates the store aisles to emphasize the 'corporate' feel, while the checkout counter utilizes a subtle rim light on Nala to signify her hidden status. The antagonists are lit with slightly cooler tones to appear detached, while the Elderly Man is caught in softer, warmer pockets of light to evoke empathy.",
+        "tone": "A tense, social-realist drama that balances cold corporate apathy with simmering emotional justice.",
+        "characters": [
+          {
+            "name": "Nala Thorne",
+            "description": "A billionaire CEO in her late 30s with an observant, calculating gaze. She hides her natural command behind a mask of retail subservience.",
+            "wardrobe": "A slightly oversized, cheap polyester blue vest with a 'Thorne Superstore' logo, a plain white t-shirt, and dark slacks.",
+            "distinctive_features": "Piercing eyes that contrast with her humble attire; a small, high-end smartwatch hidden under her sleeve."
+          },
+          {
+            "name": "Elderly Man",
+            "description": "A man in his late 70s, once a titan of industry, now physically frail but retaining a core of dignity.",
+            "wardrobe": "A threadbare, oversized wool overcoat in charcoal, a faded flannel shirt, and worn corduroy trousers.",
+            "distinctive_features": "Trembling hands, deep-set weary eyes, and a patch of silver stubble."
+          },
+          {
+            "name": "Sterling",
+            "description": "A mid-level floor manager in his 30s, desperate to exert the little power he has.",
+            "wardrobe": "A crisp, over-starched white button-down, a tight tie, and a name tag that reads 'Floor Lead'.",
+            "distinctive_features": "Slicked-back hair and a persistent, condescending smirk."
+          },
+          {
+            "name": "Man in Tailored Suit",
+            "description": "An affluent patron in his 40s, representing the impatient, wealthy elite.",
+            "wardrobe": "A navy pinstripe bespoke suit, a gold watch, and polished leather oxfords.",
+            "distinctive_features": "A look of visible disgust; constantly checking a high-end smartphone."
+          }
+        ],
+        "locations": [
+          {
+            "name": "Thorne Superstore Checkout Counter",
+            "description": "The epicenter of the conflict. A high-tech, sterile retail environment designed for efficiency over humanity.",
+            "atmosphere": "Cold, noisy, and high-pressure.",
+            "key_elements": [
+              "Conveyor belt with scuff marks",
+              "Glowing red barcode laser",
+              "Digital POS display showing 'Balance Due'",
+              "Plexiglass dividers reflecting the harsh overhead lights"
+            ]
+          }
+        ],
+        "props": [
+          {
+            "name": "Worn Copper Coins",
+            "description": "A handful of dull, oxidized pennies and nickels.",
+            "importance": "Symbolizes the Elderly Man's fall from grace and the 'debt' of the title."
+          },
+          {
+            "name": "Bottle of Milk and Loaf of Bread",
+            "description": "Generic store-brand staples in plastic packaging.",
+            "importance": "Represents the basic human needs at the center of the humiliation."
+          },
+          {
+            "name": "Barcode Scanner",
+            "description": "A handheld laser scanner that emits a sharp, clinical 'beep'.",
+            "importance": "The rhythmic sound adds to the auditory tension and the dehumanization of the transaction."
+          },
+          {
+            "name": "Smartphones",
+            "description": "Held by patrons to film the Elderly Man's struggle.",
+            "importance": "Represents the voyeuristic cruelty of the modern age."
+          }
+        ],
+        "continuity_rules": [
+          "The 'Balance Due' on the screen must remain consistent across all shots in the sequence.",
+          "Nala's hair must remain tucked behind her ears to maintain her 'undercover' look until the final reveal.",
+          "The lighting intensity must not flicker, maintaining the oppressive feel of industrial retail lights.",
+          "The placement of the coins on the black conveyor belt must be tracked for visual consistency in close-ups."
+        ]
+      },
+      "characters": [
+        {
+          "character_name": "Nala Thorne",
+          "prompt": "Character sheet of Nala Thorne, a Black woman in her late 30s with a deep, rich skin tone. She has a sharp, high-end facial structure with piercing eyes and an observant, calculating gaze. Her body type is athletic and slender, held with a controlled, observant posture. She is dressed in a Thorne Superstore employee uniform: a minimalist white and navy blue zip-up tech-fabric jacket with a subtle corporate logo on the chest, a magnetic silver name tag, and dark tailored trousers. Cinematic studio lighting, high-contrast professional photography, 8k resolution, neutral background, multiple angles showcasing the character and the uniform details."
+        },
+        {
+          "character_name": "Elderly Man",
+          "prompt": "Character sheet of Elderly Man, a man in his late 70s. He has deep-set weary eyes, a patch of silver stubble, and a face etched with weathered textures and deep wrinkles but retaining a core of dignity. His body type is physically frail and thin, with a slightly hunched but dignified posture and trembling hands. His wardrobe includes a threadbare, oversized charcoal wool overcoat, a faded cotton flannel shirt, and worn brown corduroy trousers. Expressions include a neutral face and a weary, dignified look. Pure white background. Soft even studio lighting. No environment. No scenery. No shadows on background. Full body front view, side view, back view, 3/4 view, close-up portrait. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Style: realistic. Aspect ratio: 16:9."
+        },
+        {
+          "character_name": "Sterling",
+          "prompt": "Character sheet of Sterling, a mid-level floor manager in his 30s. He has a sharp face with slicked-back hair and a persistent, condescending smirk. His body type is average, held with a rigid, power-exerting posture. His wardrobe consists of a crisp, over-starched white cotton button-down shirt, a tight polyester tie, and a plastic name tag that reads 'Floor Lead'. Expressions include a neutral face and a condescending smirk. Pure white background. Soft even studio lighting. No environment. No scenery. No shadows on background. Full body front view, side view, back view, 3/4 view, close-up portrait. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Style: realistic. Aspect ratio: 16:9."
+        },
+        {
+          "character_name": "Man in Tailored Suit",
+          "prompt": "Character sheet of Man in Tailored Suit, an affluent patron in his 40s. He has elite face structure with sharp features and a look of visible disgust. His body type is well-maintained and fit, with an impatient, entitled posture. His wardrobe consists of a navy blue pinstripe bespoke wool suit and polished black leather oxfords. Key accessories include a gold luxury watch and a high-end smartphone. Expressions include a neutral face and a look of visible disgust. Pure white background. Soft even studio lighting. No environment. No scenery. No shadows on background. Full body front view, side view, back view, 3/4 view, close-up portrait. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Style: realistic. Aspect ratio: 16:9."
+        }
+      ],
+      "locations": [
+        {
+          "location_name": "Thorne Superstore Checkout Counter",
+          "prompt": "THORNE SUPERSTORE CHECKOUT COUNTER — EXTREME WIDE PANORAMIC ESTABLISHING SHOT, EMPTY SET, NO PEOPLE. A colossal, high-tech retail environment defined by a sterile, clinical aesthetic and vast spatial scale. The composition features a perfect symmetrical linear perspective of twenty parallel checkout lanes, each constructed from brushed titanium, tempered glass, and white matte polymers with integrated soft-blue LED accent strips. Sleek, transparent holographic interface screens hover silently above each station, displaying idle diagnostic data. The polished white epoxy floor creates a mirror-like reflection of the overhead recessed geometric lighting panels. In the far background, massive minimalist digital walls display the 'Thorne' corporate logo in a muted, sophisticated font. Cinematic 14mm anamorphic wide-angle lens, deep depth of field, high-key architectural lighting, cold color palette (whites, cyans, and greys), 8k resolution, photorealistic film production design for a sci-fi corporate setting."
+        }
+      ],
+      "storyboards": [
+        {
+          "board_number": 1,
+          "duration": 14,
+          "story_beat": "The Elderly Man arrives at the clinical checkout counter with his meager items.",
+          "characters_used": [
+            "Nala Thorne",
+            "Elderly Man"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Wide",
+              "lens_feel": "24mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Wide view of the sterile checkout lane. Nala in her blue vest stands behind the counter as the Elderly Man in his charcoal overcoat slowly approaches the conveyor belt.",
+              "emotion": "Isolation",
+              "dialogue_audio": "Hum of industrial refrigerators and distant store music."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Slow push-in",
+              "composition": "TENSION",
+              "action": "The Elderly Man's trembling hands place a single bottle of milk and a loaf of bread onto the black conveyor belt.",
+              "emotion": "Fragility",
+              "dialogue_audio": "The rhythmic thud of the conveyor belt starting."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Nala’s hands, efficient and mechanical, slide the milk across the glowing red barcode laser.",
+              "emotion": "Professionalism",
+              "dialogue_audio": "A sharp, digital 'beep'."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Nala looks up from the scanner, her face a neutral mask, observing the man's weary eyes.",
+              "emotion": "Observation",
+              "dialogue_audio": "Ambient store chatter."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Wide, 24mm): Wide view of the sterile checkout lane. Nala in her blue vest stands behind the counter as the Elderly Man in his charcoal overcoat slowly approaches the conveyor belt. — Isolation.  Panel 2 (Medium, 50mm): The Elderly Man's trembling hands place a single bottle of milk and a loaf of bread onto the black conveyor belt. — Fragility. Camera: Slow push-in. Panel 3 (Close-Up, 85mm): Nala’s hands, efficient and mechanical, slide the milk across the glowing red barcode laser. — Professionalism.  Panel 4 (Medium Close-Up, 50mm): Nala looks up from the scanner, her face a neutral mask, observing the man's weary eyes. — Observation.  Characters: Nala Thorne, Elderly Man. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 2,
+          "duration": 14,
+          "story_beat": "The transaction stalls as the Elderly Man realizes he is short on cash.",
+          "characters_used": [
+            "Nala Thorne",
+            "Elderly Man"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Extreme Close-Up",
+              "lens_feel": "100mm macro",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "The Elderly Man spills a handful of worn copper coins onto the black belt. They roll and settle, clearly insufficient.",
+              "emotion": "Desperation",
+              "dialogue_audio": "The metallic clinking of coins on hard plastic."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "The digital POS display glows with the text 'Balance Due: $2.45'. The red light reflects off the plexiglass.",
+              "emotion": "Coldness",
+              "dialogue_audio": "Silence, save for the hum of the store."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Slow push-in",
+              "composition": "BREAK",
+              "action": "The Elderly Man frantically searches his overcoat pockets, his face flushing with embarrassment.",
+              "emotion": "Humiliation",
+              "dialogue_audio": "The sound of rustling fabric."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium",
+              "lens_feel": "35mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Nala watches him, her eyes narrowing slightly as she notices a specific detail on his worn cuff.",
+              "emotion": "Curiosity",
+              "dialogue_audio": "Heavy, rhythmic breathing from the man."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Extreme Close-Up, 100mm macro): The Elderly Man spills a handful of worn copper coins onto the black belt. They roll and settle, clearly insufficient. — Desperation.  Panel 2 (Close-Up, 85mm): The digital POS display glows with the text 'Balance Due: $2.45'. The red light reflects off the plexiglass. — Coldness.  Panel 3 (Medium Close-Up, 50mm): The Elderly Man frantically searches his overcoat pockets, his face flushing with embarrassment. — Humiliation. Camera: Slow push-in. Panel 4 (Medium, 35mm): Nala watches him, her eyes narrowing slightly as she notices a specific detail on his worn cuff. — Curiosity.  Characters: Nala Thorne, Elderly Man. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 3,
+          "duration": 14,
+          "story_beat": "The wealthy patron behind him expresses visible and tactile impatience.",
+          "characters_used": [
+            "Man in Tailored Suit",
+            "Elderly Man"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "The Man in Tailored Suit sighs heavily, his body language stiff and aggressive as he looms behind the Elderly Man.",
+              "emotion": "Impatience",
+              "dialogue_audio": "A sharp, exaggerated exhale."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "The Man in Tailored Suit checks his gold watch, then aggressively taps on his high-end smartphone screen.",
+              "emotion": "Arrogance",
+              "dialogue_audio": "The rapid tapping of a finger on glass."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Tracking",
+              "composition": "BREAK",
+              "action": "The Man in Tailored Suit steps forward, invading the Elderly Man's personal space, looking at the ceiling in disgust.",
+              "emotion": "Cruelty",
+              "dialogue_audio": "The sound of leather oxfords scuffing the linoleum."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Wide",
+              "lens_feel": "24mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "The checkout line stretches back, other customers looking on with varying degrees of indifference and annoyance.",
+              "emotion": "Social Pressure",
+              "dialogue_audio": "A low murmur of complaints from the back of the line."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Medium, 50mm): The Man in Tailored Suit sighs heavily, his body language stiff and aggressive as he looms behind the Elderly Man. — Impatience.  Panel 2 (Close-Up, 85mm): The Man in Tailored Suit checks his gold watch, then aggressively taps on his high-end smartphone screen. — Arrogance.  Panel 3 (Medium Close-Up, 50mm): The Man in Tailored Suit steps forward, invading the Elderly Man's personal space, looking at the ceiling in disgust. — Cruelty. Camera: Tracking. Panel 4 (Wide, 24mm): The checkout line stretches back, other customers looking on with varying degrees of indifference and annoyance. — Social Pressure.  Characters: Man in Tailored Suit, Elderly Man. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 4,
+          "duration": 14,
+          "story_beat": "Sterling, the floor manager, arrives to exert his authority.",
+          "characters_used": [
+            "Sterling",
+            "Elderly Man",
+            "Nala Thorne"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Medium",
+              "lens_feel": "35mm",
+              "movement": "Dolly",
+              "composition": "BREAK",
+              "action": "Sterling marches into the frame, his 'Floor Lead' name tag catching the harsh overhead light.",
+              "emotion": "Aggression",
+              "dialogue_audio": "Fast, authoritative footsteps."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Sterling’s face in a condescending smirk as he looks down at the coins on the belt.",
+              "emotion": "Cruelty",
+              "dialogue_audio": "Sterling's voice: 'Problem here, Thorne?'"
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "The Elderly Man lowers his head, his silver stubble catching the light, looking small against the corporate backdrop.",
+              "emotion": "Defeat",
+              "dialogue_audio": "A shaky, quiet apology."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Slow push-in",
+              "composition": "BREAK",
+              "action": "Nala’s hand grips the edge of the counter, her knuckles turning white under the blue polyester sleeve.",
+              "emotion": "Rising Anger",
+              "dialogue_audio": "The creak of the plastic counter under pressure."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Medium, 35mm): Sterling marches into the frame, his 'Floor Lead' name tag catching the harsh overhead light. — Aggression. Camera: Dolly. Panel 2 (Close-Up, 85mm): Sterling’s face in a condescending smirk as he looks down at the coins on the belt. — Cruelty.  Panel 3 (Medium Close-Up, 50mm): The Elderly Man lowers his head, his silver stubble catching the light, looking small against the corporate backdrop. — Defeat.  Panel 4 (Close-Up, 85mm): Nala’s hand grips the edge of the counter, her knuckles turning white under the blue polyester sleeve. — Rising Anger. Camera: Slow push-in. Characters: Sterling, Elderly Man, Nala Thorne. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 5,
+          "duration": 14,
+          "story_beat": "Nala recognizes the Elderly Man as her former mentor.",
+          "characters_used": [
+            "Nala Thorne",
+            "Elderly Man"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Extreme Close-Up",
+              "lens_feel": "100mm macro",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Nala’s eyes widen. The focus shifts from the counter to the reflection of the Elderly Man in her pupils.",
+              "emotion": "Shock",
+              "dialogue_audio": "The store noise fades into a muffled, heartbeat-like rhythm."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Medium",
+              "lens_feel": "85mm",
+              "movement": "Slow push-in",
+              "composition": "RESTORE",
+              "action": "The Elderly Man is isolated by a shallow depth of field; the background blurs as a warm light hits his face.",
+              "emotion": "Reverence",
+              "dialogue_audio": "A soft, melodic chime from the store's PA system."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Nala sees a small, tarnished lapel pin on his coat—a symbol of the company's founding era.",
+              "emotion": "Connection",
+              "dialogue_audio": "Silence."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Nala’s expression shifts from retail mask to calculated, piercing intensity.",
+              "emotion": "Resolution",
+              "dialogue_audio": "Nala's breath hitching."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Extreme Close-Up, 100mm macro): Nala’s eyes widen. The focus shifts from the counter to the reflection of the Elderly Man in her pupils. — Shock.  Panel 2 (Medium, 85mm): The Elderly Man is isolated by a shallow depth of field; the background blurs as a warm light hits his face. — Reverence. Camera: Slow push-in. Panel 3 (Close-Up, 50mm): Nala sees a small, tarnished lapel pin on his coat—a symbol of the company's founding era. — Connection.  Panel 4 (Medium Close-Up, 50mm): Nala’s expression shifts from retail mask to calculated, piercing intensity. — Resolution.  Characters: Nala Thorne, Elderly Man. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 6,
+          "duration": 12,
+          "story_beat": "Sterling attempts to remove the man, but Nala intervenes physically.",
+          "characters_used": [
+            "Sterling",
+            "Elderly Man",
+            "Nala Thorne",
+            "Man in Tailored Suit"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Medium",
+              "lens_feel": "35mm",
+              "movement": "Static",
+              "composition": "BREAK",
+              "action": "Sterling reaches out to grab the milk bottle and the loaf of bread to pull them away from the man.",
+              "emotion": "Cruelty",
+              "dialogue_audio": "Sterling: 'No money, no food. Move it along.'"
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Close-Up",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "BREAK",
+              "action": "Nala's hand slams down on the conveyor belt, stopping Sterling's hand mid-reach.",
+              "emotion": "Authority",
+              "dialogue_audio": "A loud, echoing 'THUD' on the plastic belt."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Sterling recoils, his eyes wide with confusion and rising anger at the insubordination.",
+              "emotion": "Disbelief",
+              "dialogue_audio": "Sterling's indignant gasp."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium",
+              "lens_feel": "35mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "The Man in Tailored Suit scoffs and checks his watch again, oblivious to the shift in power.",
+              "emotion": "Apathy",
+              "dialogue_audio": "Man in Suit: 'Are we doing this or what?'"
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Medium, 35mm): Sterling reaches out to grab the milk bottle and the loaf of bread to pull them away from the man. — Cruelty.  Panel 2 (Close-Up, 50mm): Nala's hand slams down on the conveyor belt, stopping Sterling's hand mid-reach. — Authority.  Panel 3 (Medium, 50mm): Sterling recoils, his eyes wide with confusion and rising anger at the insubordination. — Disbelief.  Panel 4 (Medium, 35mm): The Man in Tailored Suit scoffs and checks his watch again, oblivious to the shift in power. — Apathy.  Characters: Sterling, Elderly Man, Nala Thorne, Man in Tailored Suit. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 7,
+          "duration": 14,
+          "story_beat": "Nala prepares to reveal her true identity to the stunned antagonists.",
+          "characters_used": [
+            "Nala Thorne",
+            "Sterling",
+            "Elderly Man"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Nala slowly pulls back the sleeve of her blue polyester vest, revealing a sleek, high-end titanium smartwatch.",
+              "emotion": "Power",
+              "dialogue_audio": "The soft rustle of high-quality fabric under the cheap vest."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Medium",
+              "lens_feel": "35mm",
+              "movement": "Slow push-in",
+              "composition": "RESTORE",
+              "action": "Nala stands fully upright, her posture transforming from a slouched cashier to a commanding executive.",
+              "emotion": "Dominance",
+              "dialogue_audio": "The store noise seems to drop away."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "TENSION",
+              "action": "Low angle shot of Nala looking down at Sterling. He looks small and insignificant in her shadow.",
+              "emotion": "Judgment",
+              "dialogue_audio": "Nala's voice: 'Check the employee ID again, Sterling.'"
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "RESTORE",
+              "action": "The Elderly Man looks up, a flicker of recognition and hope crossing his weary face.",
+              "emotion": "Hope",
+              "dialogue_audio": "The man's breath catching in a faint sob."
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Close-Up, 85mm): Nala slowly pulls back the sleeve of her blue polyester vest, revealing a sleek, high-end titanium smartwatch. — Power.  Panel 2 (Medium, 35mm): Nala stands fully upright, her posture transforming from a slouched cashier to a commanding executive. — Dominance. Camera: Slow push-in. Panel 3 (Medium, 50mm): Low angle shot of Nala looking down at Sterling. He looks small and insignificant in her shadow. — Judgment.  Panel 4 (Medium Close-Up, 85mm): The Elderly Man looks up, a flicker of recognition and hope crossing his weary face. — Hope.  Characters: Nala Thorne, Sterling, Elderly Man. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        },
+        {
+          "board_number": 8,
+          "duration": 15,
+          "story_beat": "Nala settles the debt and takes control of the store.",
+          "characters_used": [
+            "Nala Thorne",
+            "Elderly Man",
+            "Sterling"
+          ],
+          "location_used": "Thorne Superstore Checkout Counter",
+          "shots": [
+            {
+              "shot_number": 1,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "Nala taps her watch against the POS terminal. A blue light flashes, signaling an executive override.",
+              "emotion": "Control",
+              "dialogue_audio": "A high-pitched, melodic 'Success' tone from the terminal."
+            },
+            {
+              "shot_number": 2,
+              "shot_size": "Wide",
+              "lens_feel": "24mm",
+              "movement": "Static",
+              "composition": "RESTORE",
+              "action": "The store atmosphere shifts; the harsh overhead lights seem to reflect the newfound clarity of the situation.",
+              "emotion": "Justice",
+              "dialogue_audio": "The store's overhead music cuts out abruptly."
+            },
+            {
+              "shot_number": 3,
+              "shot_size": "Close-Up",
+              "lens_feel": "85mm",
+              "movement": "Static",
+              "composition": "LOCK",
+              "action": "The POS screen changes from 'Balance Due' to 'Transaction Complete: Thorne Executive Account'.",
+              "emotion": "Resolution",
+              "dialogue_audio": "The sound of a receipt printer starting."
+            },
+            {
+              "shot_number": 4,
+              "shot_size": "Medium",
+              "lens_feel": "50mm",
+              "movement": "Slow push-in",
+              "composition": "RESTORE",
+              "action": "Nala reaches across the counter and gently places her hand over the Elderly Man’s trembling hand.",
+              "emotion": "Gratitude",
+              "dialogue_audio": "Nala's voice: 'It’s been a long time, Mentor.'"
+            }
+          ],
+          "storyboard_prompt": "Multi-panel cinematic storyboard, 4 still frames arranged in 2x2 grid. Each panel is a photorealistic cinematic still frame that looks like a paused moment from the actual film. Panel borders with thin black lines. Small panel number in top-left corner. Panel 1 (Medium, 50mm): Nala taps her watch against the POS terminal. A blue light flashes, signaling an executive override. — Control.  Panel 2 (Wide, 24mm): The store atmosphere shifts; the harsh overhead lights seem to reflect the newfound clarity of the situation. — Justice.  Panel 3 (Close-Up, 85mm): The POS screen changes from 'Balance Due' to 'Transaction Complete: Thorne Executive Account'. — Resolution.  Panel 4 (Medium, 50mm): Nala reaches across the counter and gently places her hand over the Elderly Man’s trembling hand. — Gratitude. Camera: Slow push-in. Characters: Nala Thorne, Elderly Man, Sterling. Location: Thorne Superstore Checkout Counter. Thin directional arrows between panels showing sequence. Cinematic still frames, photorealistic, film grain, each panel looks like a paused frame from the actual film. photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. NOT stylized, NOT cartoon, NOT painting, NOT illustration, NOT exaggerated. Aspect ratio: 16:9."
+        }
+      ],
+      "seedance": [
+        {
+          "board_number": 1,
+          "duration": 14,
+          "board_prompt": "Interior Thorne Superstore checkout lane, sterile clinical lighting with harsh overhead fluorescents and polished linoleum. Nala Thorne stands behind the counter in a slightly oversized blue polyester vest over a white t-shirt. An Elderly Man in a worn charcoal overcoat slowly approaches the black conveyor belt, placing a single bottle of milk and a loaf of bread down with trembling hands. Nala slides the milk across the glowing red barcode laser with mechanical efficiency, then looks up to observe the man's weary eyes. The camera starts as a wide 24mm shot, then executes a slow 50mm push-in on the man's hands, transitioning to a static 85mm close-up of the scanning action. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 2,
+          "duration": 14,
+          "board_prompt": "Interior clinical checkout counter, cold corporate atmosphere. The Elderly Man spills a handful of worn copper coins onto the black conveyor belt, which roll and settle in a scattered, insufficient pile. The digital POS display glows with 'Balance Due: $2.45', its red light reflecting off the plexiglass shield. The man frantically searches his charcoal overcoat pockets, face flushing with embarrassment, while Nala watches from behind the counter, her eyes narrowing as she spots a detail on his worn sleeve cuff. The camera moves from a 100mm macro extreme close-up of the coins to a static 85mm close-up of the display, followed by a slow 50mm push-in on the man's face. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 3,
+          "duration": 14,
+          "board_prompt": "Interior Thorne Superstore, harsh fluorescent lighting creating cold shadows. A Man in a navy pinstripe bespoke suit stands aggressively behind the Elderly Man, sighing heavily with stiff body language. He checks a gold watch and taps his high-end smartphone screen with sharp, rhythmic movements before stepping forward to invade the Elderly Man's personal space and looking at the ceiling in disgust. Other customers in the long checkout line look on with indifference. The camera captures the scene with a static 50mm medium shot of the suit, an 85mm close-up of the watch, and a 50mm tracking shot as he moves forward. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 4,
+          "duration": 14,
+          "board_prompt": "Interior supermarket checkout, sterile and high-pressure. Sterling, the floor lead, marches into frame in a crisp white button-down and tie, his name tag glinting under the lights as he looks down at the coins with a condescending smirk. The Elderly Man lowers his head in defeat, silver stubble catching the overhead light, while Nala’s hand grips the counter edge, her knuckles turning white under her blue polyester sleeve. The camera follows Sterling with a 35mm dolly shot, then cuts to a static 85mm close-up of his face and a slow 85mm push-in on Nala’s tensing hand. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 5,
+          "duration": 14,
+          "board_prompt": "Interior checkout counter, shallow depth of field isolating the characters. Nala’s eyes widen in shock as she recognizes the Elderly Man, her focus shifting from the counter to his reflection in her pupils. She notices a small, tarnished lapel pin on his charcoal coat—a founding era company symbol—and her expression transforms from a retail mask to one of piercing intensity and resolution. The camera transitions from a 100mm macro of Nala's eyes to a slow 85mm push-in on the Elderly Man as a warm light hits his face, ending on a static 50mm close-up of the pin. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 6,
+          "duration": 12,
+          "board_prompt": "Interior checkout lane, clinical and tense. Sterling reaches out to snatch the milk and bread away from the Elderly Man, but Nala’s hand slams down on the conveyor belt with authority, stopping him mid-reach. Sterling recoils in shock and confusion while the Man in the Tailored Suit scoffs and checks his watch once more, oblivious to the confrontation. The camera remains static, moving from a 35mm medium shot of the reach to a 50mm close-up of the physical intervention on the belt. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 7,
+          "duration": 14,
+          "board_prompt": "Interior Thorne Superstore, low angle perspective. Nala slowly pulls back her blue polyester sleeve to reveal a sleek titanium smartwatch, her posture shifting from a slouched cashier to a commanding executive stance. She stands fully upright, looking down at Sterling who appears small and insignificant in her shadow, while the Elderly Man looks up with a flicker of recognition and hope. The camera captures a static 85mm close-up of the watch followed by a slow 35mm push-in on Nala’s face and a low-angle 50mm shot establishing her dominance. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        },
+        {
+          "board_number": 8,
+          "duration": 15,
+          "board_prompt": "Interior checkout counter, the atmosphere shifting to one of justice and clarity. Nala taps her titanium watch against the POS terminal, triggering a flashing blue light and an executive override that changes the screen to 'Transaction Complete: Thorne Executive Account'. Nala then reaches across the counter to gently place her hand over the Elderly Man’s trembling hand in a gesture of gratitude. The camera uses a static 50mm shot of the tap, a 24mm wide shot of the store, and a final slow 50mm push-in on the joined hands. Photorealistic, natural lighting, true-to-life colors, sharp focus, documentary quality. Style: realistic.",
+          "negative_prompt": "stylized, cartoon, painting, illustration, exaggerated, blurry, low quality, wrong wardrobe, warm lighting, soft focus, cinematic color grading, messy environment, vibrant colors."
+        }
+      ],
+      "consistency": {
+        "passed": true,
+        "issues": [
+          {
+            "category": "Character Identity",
+            "description": "The continuity rule in the Bible specifying Nala's hair must remain 'tucked behind her ears' is missing from the character sheet prompt and all storyboard/seedance prompts, risking inconsistent facial framing.",
+            "affected_boards": [
+              1,
+              2,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "suggestion": "Add 'hair neatly tucked behind ears' to Nala Thorne's character sheet and all storyboard descriptions to maintain her 'undercover' persona."
+          },
+          {
+            "category": "Prop Consistency",
+            "description": "There is a discrepancy in coin quantity: the Location prompt specifies 'three small copper coins', while the Bible and Storyboard 2 describe a 'handful'.",
+            "affected_boards": [
+              2,
+              4,
+              6
+            ],
+            "suggestion": "Standardize the description to 'a scattered handful of 5-7 worn copper coins' across the Location and Storyboard prompts to prevent visual flickering in close-ups."
+          },
+          {
+            "category": "Lighting and Color Palette",
+            "description": "Specific hex codes from the Bible (#002D62, #F5F5F5) are utilized in the Location prompt but are absent from the Seedance prompts, which may lead to color drift in the generated video.",
+            "affected_boards": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "suggestion": "Integrate the primary hex codes (Corporate Blue #002D62 and Clinical White #F5F5F5) into the environment description of each Seedance prompt."
+          },
+          {
+            "category": "Wardrobe Consistency",
+            "description": "Nala's watch is described as a 'small, high-end smartwatch' in the character sheet but as a 'sleek titanium smartwatch' in Board 7 and Board 8. Titanium implies a specific metallic texture not mentioned in the initial character prompt.",
+            "affected_boards": [
+              7,
+              8
+            ],
+            "suggestion": "Update the character sheet to specify 'titanium smartwatch' to ensure the material texture is consistent during the reveal."
+          }
+        ]
+      }
+    },
+    "providerConfig": {
+      "apiKey": "95906ac4b56b4ac2bfbe2b3b3e26f62e.ED0wlWfIqlfRriJ4uo9ym6x1",
+      "baseUrl": "https://ollama.com",
+      "model": "gemini-3-flash-preview",
+      "provider": "ollama"
+    },
+    "refImages": [],
+    "boardImages": [],
+    "shotImages": [],
+    "createdAt": 1778138098555,
+    "updatedAt": 1778138098555
+  }
+}

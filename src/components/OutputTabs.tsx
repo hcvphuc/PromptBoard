@@ -8,12 +8,25 @@ import { PromptCard } from './PromptCard';
 import { SendToChatGPTButton } from './SendToChatGPTButton';
 import { ProductionBibleView } from './ProductionBibleView';
 import { LogsTab } from './LogsTab';
+import { ImageDropZone } from './ImageDropZone';
 import { exportMarkdown } from '@/export/markdown';
 import { exportJSON } from '@/export/json';
+
+/** Edit action types — identifies which prompt field was edited */
+export type PromptEditAction =
+  | { type: 'character-prompt'; index: number; value: string }
+  | { type: 'location-prompt'; index: number; value: string }
+  | { type: 'storyboard-prompt'; boardNumber: number; value: string }
+  | { type: 'shot-master-prompt'; boardNumber: number; shotNumber: number; value: string }
+  | { type: 'seedance-board-prompt'; boardNumber: number; value: string }
+  | { type: 'seedance-continuous-prompt'; value: string }
+  | { type: 'seedance-continuous-negative'; value: string }
+  | { type: 'seedance-board-negative'; boardNumber: number; value: string };
 
 interface OutputTabsProps {
   output: ProjectOutput;
   onRegenerateTab?: (tab: OutputTab) => void;
+  onEditPrompt?: (action: PromptEditAction) => void;
   refImages?: ReferenceImage[];
   boardImages?: BoardImage[];
   shotImages?: ShotImage[];
@@ -22,9 +35,17 @@ interface OutputTabsProps {
   onExtractShots?: () => void;
   shotBreakdownRunning?: boolean;
   extractingShots?: boolean;
+  /** Override a reference image (character or location) by data URL */
+  onOverrideRefImage?: (name: string, type: 'character' | 'location', dataUrl: string) => void;
+  /** Override a board image by data URL */
+  onOverrideBoardImage?: (boardNumber: number, dataUrl: string) => void;
+  /** Revert a reference image override back to auto-generated */
+  onRevertRefImage?: (name: string, type: 'character' | 'location') => void;
+  /** Revert a board image override */
+  onRevertBoardImage?: (boardNumber: number) => void;
 }
 
-export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImages = [], shotImages = [], onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots }: OutputTabsProps) {
+export function OutputTabs({ output, onRegenerateTab, onEditPrompt, refImages = [], boardImages = [], shotImages = [], onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots, onOverrideRefImage, onOverrideBoardImage, onRevertRefImage, onRevertBoardImage }: OutputTabsProps) {
   const [activeTab, setActiveTab] = React.useState<OutputTab>('analysis');
 
   return (
@@ -50,11 +71,11 @@ export function OutputTabs({ output, onRegenerateTab, refImages = [], boardImage
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {activeTab === 'analysis' && <AnalysisTab data={output.analysis} />}
         {activeTab === 'bible' && <ProductionBibleView bible={output.bible} />}
-        {activeTab === 'characters' && <CharactersTab data={output.characters} refImages={refImages.filter(r => r.type === 'character')} />}
-        {activeTab === 'locations' && <LocationsTab data={output.locations} refImages={refImages.filter(r => r.type === 'location')} />}
-        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={onBreakdownShots} onBreakdownAllShots={onBreakdownAllShots} onExtractShots={onExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} />}
-        {activeTab === 'shot-prompts' && <ShotPromptsTab data={output.storyboards} />}
-        {activeTab === 'board-prompts' && <BoardPromptsTab data={output.seedance} />}
+        {activeTab === 'characters' && <CharactersTab data={output.characters} refImages={refImages.filter(r => r.type === 'character')} onEditPrompt={onEditPrompt} onOverrideImage={onOverrideRefImage} onRevertImage={onRevertRefImage} />}
+        {activeTab === 'locations' && <LocationsTab data={output.locations} refImages={refImages.filter(r => r.type === 'location')} onEditPrompt={onEditPrompt} onOverrideImage={onOverrideRefImage} onRevertImage={onRevertRefImage} />}
+        {activeTab === 'storyboards' && <StoryboardsTab data={output.storyboards} boardImages={boardImages} shotImages={shotImages} onBreakdownShots={onBreakdownShots} onBreakdownAllShots={onBreakdownAllShots} onExtractShots={onExtractShots} shotBreakdownRunning={shotBreakdownRunning} extractingShots={extractingShots} onEditPrompt={onEditPrompt} onOverrideBoardImage={onOverrideBoardImage} onRevertBoardImage={onRevertBoardImage} />}
+        {activeTab === 'shot-prompts' && <ShotPromptsTab data={output.storyboards} onEditPrompt={onEditPrompt} />}
+        {activeTab === 'board-prompts' && <BoardPromptsTab data={output.seedance} onEditPrompt={onEditPrompt} />}
         {activeTab === 'export' && <ExportTab output={output} />}
         {activeTab === 'logs' && <LogsTab />}
       </div>
@@ -153,7 +174,7 @@ function AnalysisTab({ data }: { data: AnalysisOutput }) {
   );
 }
 
-function CharactersTab({ data, refImages }: { data: CharacterPrompt[]; refImages: ReferenceImage[] }) {
+function CharactersTab({ data, refImages, onEditPrompt, onOverrideImage, onRevertImage }: { data: CharacterPrompt[]; refImages: ReferenceImage[]; onEditPrompt?: (action: PromptEditAction) => void; onOverrideImage?: (name: string, type: 'character' | 'location', dataUrl: string) => void; onRevertImage?: (name: string, type: 'character' | 'location') => void }) {
   const allText = data.map(c => c.prompt).join('\n\n---\n\n');
   return (
     <div className="space-y-3">
@@ -163,23 +184,26 @@ function CharactersTab({ data, refImages }: { data: CharacterPrompt[]; refImages
       </div>
       {data.map((c, i) => {
         const ref = refImages.find(r => r.name.toLowerCase() === c.character_name.toLowerCase());
+        const isManual = ref?.isManual;
         return (
           <div key={i} className="flex gap-2">
-            {ref && (
-              <div className="flex-shrink-0">
-                <img
-                  src={ref.imageDataUrl}
-                  alt={c.character_name}
-                  className="w-16 h-16 object-cover rounded border border-border"
-                  title={`Ref: ${c.character_name}`}
-                />
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <ImageDropZone
+                imageUrl={ref?.imageDataUrl}
+                alt={c.character_name}
+                size="sm"
+                isManual={isManual}
+                onImageChange={(dataUrl) => onOverrideImage?.(c.character_name, 'character', dataUrl)}
+                onRevert={isManual ? () => onRevertImage?.(c.character_name, 'character') : undefined}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <PromptCard
                 title={c.character_name}
                 content={c.prompt}
                 showSendToChatGPT
+                editable
+                onEdit={(newVal) => onEditPrompt?.({ type: 'character-prompt', index: i, value: newVal })}
               />
             </div>
           </div>
@@ -189,7 +213,7 @@ function CharactersTab({ data, refImages }: { data: CharacterPrompt[]; refImages
   );
 }
 
-function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: ReferenceImage[] }) {
+function LocationsTab({ data, refImages, onEditPrompt, onOverrideImage, onRevertImage }: { data: LocationPrompt[]; refImages: ReferenceImage[]; onEditPrompt?: (action: PromptEditAction) => void; onOverrideImage?: (name: string, type: 'character' | 'location', dataUrl: string) => void; onRevertImage?: (name: string, type: 'character' | 'location') => void }) {
   const allText = data.map(l => l.prompt).join('\n\n---\n\n');
   return (
     <div className="space-y-3">
@@ -199,23 +223,26 @@ function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: 
       </div>
       {data.map((l, i) => {
         const ref = refImages.find(r => r.name.toLowerCase() === l.location_name.toLowerCase());
+        const isManual = ref?.isManual;
         return (
           <div key={i} className="flex gap-2">
-            {ref && (
-              <div className="flex-shrink-0">
-                <img
-                  src={ref.imageDataUrl}
-                  alt={l.location_name}
-                  className="w-16 h-16 object-cover rounded border border-border"
-                  title={`Ref: ${l.location_name}`}
-                />
-              </div>
-            )}
+            <div className="flex-shrink-0">
+              <ImageDropZone
+                imageUrl={ref?.imageDataUrl}
+                alt={l.location_name}
+                size="sm"
+                isManual={isManual}
+                onImageChange={(dataUrl) => onOverrideImage?.(l.location_name, 'location', dataUrl)}
+                onRevert={isManual ? () => onRevertImage?.(l.location_name, 'location') : undefined}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <PromptCard
                 title={l.location_name}
                 content={l.prompt}
                 showSendToChatGPT
+                editable
+                onEdit={(newVal) => onEditPrompt?.({ type: 'location-prompt', index: i, value: newVal })}
               />
             </div>
           </div>
@@ -225,7 +252,7 @@ function LocationsTab({ data, refImages }: { data: LocationPrompt[]; refImages: 
   );
 }
 
-function StoryboardsTab({ data, boardImages, shotImages, onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots }: { data: StoryboardBoard[]; boardImages: BoardImage[]; shotImages: ShotImage[]; onBreakdownShots?: (boardNumber: number) => void; onBreakdownAllShots?: () => void; onExtractShots?: () => void; shotBreakdownRunning?: boolean; extractingShots?: boolean; }) {
+function StoryboardsTab({ data, boardImages, shotImages, onBreakdownShots, onBreakdownAllShots, onExtractShots, shotBreakdownRunning, extractingShots, onEditPrompt, onOverrideBoardImage, onRevertBoardImage }: { data: StoryboardBoard[]; boardImages: BoardImage[]; shotImages: ShotImage[]; onBreakdownShots?: (boardNumber: number) => void; onBreakdownAllShots?: () => void; onExtractShots?: () => void; shotBreakdownRunning?: boolean; extractingShots?: boolean; onEditPrompt?: (action: PromptEditAction) => void; onOverrideBoardImage?: (boardNumber: number, dataUrl: string) => void; onRevertBoardImage?: (boardNumber: number) => void }) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -316,16 +343,21 @@ function StoryboardsTab({ data, boardImages, shotImages, onBreakdownShots, onBre
             title="📊 Storyboard Layout Prompt"
             content={board.storyboard_prompt}
             showSendToChatGPT
+            editable
+            onEdit={(newVal) => onEditPrompt?.({ type: 'storyboard-prompt', boardNumber: board.board_number, value: newVal })}
           />
           {(() => {
             const boardImg = boardImages.find(b => b.boardNumber === board.board_number);
-            if (!boardImg) return null;
+            const isManual = boardImg?.isManual;
             return (
               <div className="mt-2">
-                <img
-                  src={boardImg.imageDataUrl}
+                <ImageDropZone
+                  imageUrl={boardImg?.imageDataUrl}
                   alt={`Board ${board.board_number}`}
-                  className="w-full rounded border border-border"
+                  size="lg"
+                  isManual={isManual}
+                  onImageChange={(dataUrl) => onOverrideBoardImage?.(board.board_number, dataUrl)}
+                  onRevert={isManual ? () => onRevertBoardImage?.(board.board_number) : undefined}
                 />
               </div>
             );
@@ -357,7 +389,7 @@ function StoryboardsTab({ data, boardImages, shotImages, onBreakdownShots, onBre
   );
 }
 
-function ShotPromptsTab({ data }: { data: StoryboardBoard[] }) {
+function ShotPromptsTab({ data, onEditPrompt }: { data: StoryboardBoard[]; onEditPrompt?: (action: PromptEditAction) => void }) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -395,16 +427,23 @@ function ShotPromptsTab({ data }: { data: StoryboardBoard[] }) {
         <CopyButton text={allText} label="Copy All" />
       </div>
       <div className="bg-accent/10 border border-accent/30 rounded-btn p-3">
-        <p className="text-xs text-secondary">{allShots.length} video prompts across {data.length} boards. Copy all and paste into your video generation tool.</p>
+        <p className="text-xs text-secondary">{allShots.length} video prompts across {data.length} boards. Edit each prompt below, then copy all.</p>
       </div>
-      <div className="bg-card border border-border rounded-btn p-3">
-        <pre className="text-xs text-primary whitespace-pre-wrap font-mono leading-relaxed">{allText}</pre>
-      </div>
+      {allShots.map((s, i) => (
+        <PromptCard
+          key={i}
+          title={`Board ${s.boardNumber} — Shot ${s.shot.shot_number}`}
+          content={s.shot.master_prompt!}
+          showSendToChatGPT
+          editable
+          onEdit={(newVal) => onEditPrompt?.({ type: 'shot-master-prompt', boardNumber: s.boardNumber, shotNumber: s.shot.shot_number, value: newVal })}
+        />
+      ))}
     </div>
   );
 }
 
-function BoardPromptsTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePromptContinuous }) {
+function BoardPromptsTab({ data, onEditPrompt }: { data: SeedancePromptPerBoard[] | SeedancePromptContinuous; onEditPrompt?: (action: PromptEditAction) => void }) {
   if (!data) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -426,8 +465,8 @@ function BoardPromptsTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePr
           <h4 className="text-xs font-semibold text-accent mb-2">Continuous Scene — {s.total_duration}s</h4>
           <p className="text-xs text-secondary">Single master prompt for the entire scene.</p>
         </div>
-        <PromptCard title="Master Prompt" content={s.master_prompt} showSendToChatGPT />
-        <PromptCard title="Negative Prompt" content={s.negative_prompt} />
+        <PromptCard title="Master Prompt" content={s.master_prompt} showSendToChatGPT editable onEdit={(newVal) => onEditPrompt?.({ type: 'seedance-continuous-prompt', value: newVal })} />
+        <PromptCard title="Negative Prompt" content={s.negative_prompt} editable onEdit={(newVal) => onEditPrompt?.({ type: 'seedance-continuous-negative', value: newVal })} />
       </div>
     );
   }
@@ -443,8 +482,8 @@ function BoardPromptsTab({ data }: { data: SeedancePromptPerBoard[] | SeedancePr
       {(data as SeedancePromptPerBoard[]).map((s) => (
         <div key={s.board_number} className="space-y-2">
           <h4 className="text-xs font-semibold text-accent">Board {s.board_number} — {s.duration}s</h4>
-          <PromptCard title="Board Prompt" content={s.board_prompt} showSendToChatGPT />
-          <PromptCard title="Negative Prompt" content={s.negative_prompt} />
+          <PromptCard title="Board Prompt" content={s.board_prompt} showSendToChatGPT editable onEdit={(newVal) => onEditPrompt?.({ type: 'seedance-board-prompt', boardNumber: s.board_number, value: newVal })} />
+          <PromptCard title="Negative Prompt" content={s.negative_prompt} editable onEdit={(newVal) => onEditPrompt?.({ type: 'seedance-board-negative', boardNumber: s.board_number, value: newVal })} />
         </div>
       ))}
     </div>

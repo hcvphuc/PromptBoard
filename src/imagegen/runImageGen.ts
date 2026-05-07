@@ -53,6 +53,28 @@ async function ensureDataUrl(imageUrl: string, label: string): Promise<string | 
   return null;
 }
 
+/** Download all new image URLs, returning the first successful data URL.
+ *  ChatGPT may return multiple images per prompt; we take the best one.
+ */
+async function ensureFirstDataUrl(imageUrls: string[], label: string): Promise<string | null> {
+  if (imageUrls.length === 0) return null;
+
+  // If only 1 image, download it directly
+  if (imageUrls.length === 1) {
+    return ensureDataUrl(imageUrls[0], label);
+  }
+
+  // Multiple images — download all, return first successful one
+  // Prefer the last image (most likely the final output)
+  for (let i = imageUrls.length - 1; i >= 0; i--) {
+    const dataUrl = await ensureDataUrl(imageUrls[i], `${label} (image ${i + 1}/${imageUrls.length})`);
+    if (dataUrl) return dataUrl;
+  }
+
+  logger.error('ImageGen', `All ${imageUrls.length} images failed to download for ${label}`);
+  return null;
+}
+
 export async function runImageGeneration(
   output: ProjectOutput,
   onProgress?: ImageGenProgressCallback,
@@ -102,7 +124,23 @@ export async function runImageGeneration(
 
       const result = await generateImage(char.prompt);
 
-      if (result.success && result.imageUrl) {
+      if (result.success && result.imageUrls && result.imageUrls.length > 0) {
+        // ChatGPT returned multiple images — download all, pick best
+        logger.info('ImageGen', `Generated character: ${char.character_name}`, `${result.imageUrls.length} image(s) returned`);
+
+        const dataUrl = await ensureFirstDataUrl(result.imageUrls, `character ${char.character_name}`);
+        if (dataUrl) {
+          refImages.push({
+            name: char.character_name,
+            type: 'character',
+            imageDataUrl: dataUrl,
+            prompt: char.prompt,
+          });
+        } else {
+          errors.push(`Character "${char.character_name}": image generated but download failed`);
+        }
+      } else if (result.success && result.imageUrl) {
+        // Fallback: single imageUrl
         logger.info('ImageGen', `Generated character: ${char.character_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
 
         const dataUrl = await ensureDataUrl(result.imageUrl, `character ${char.character_name}`);
@@ -141,7 +179,21 @@ export async function runImageGeneration(
 
       const result = await generateImage(loc.prompt);
 
-      if (result.success && result.imageUrl) {
+      if (result.success && result.imageUrls && result.imageUrls.length > 0) {
+        logger.info('ImageGen', `Generated location: ${loc.location_name}`, `${result.imageUrls.length} image(s) returned`);
+
+        const dataUrl = await ensureFirstDataUrl(result.imageUrls, `location ${loc.location_name}`);
+        if (dataUrl) {
+          refImages.push({
+            name: loc.location_name,
+            type: 'location',
+            imageDataUrl: dataUrl,
+            prompt: loc.prompt,
+          });
+        } else {
+          errors.push(`Location "${loc.location_name}": image generated but download failed`);
+        }
+      } else if (result.success && result.imageUrl) {
         logger.info('ImageGen', `Generated location: ${loc.location_name}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
 
         const dataUrl = await ensureDataUrl(result.imageUrl, `location ${loc.location_name}`);
@@ -224,7 +276,22 @@ export async function runImageGeneration(
         }
       }
 
-      if (result.success && result.imageUrl) {
+      if (result.success && result.imageUrls && result.imageUrls.length > 0) {
+        // ChatGPT returned multiple images — download all, pick best
+        logger.info('ImageGen', `Generated board: ${label}`, `${result.imageUrls.length} image(s) returned`);
+
+        const dataUrl = await ensureFirstDataUrl(result.imageUrls, `board ${label}`);
+        if (dataUrl) {
+          boardImages.push({
+            boardNumber: board.board_number,
+            imageDataUrl: dataUrl,
+            prompt: board.storyboard_prompt,
+          });
+        } else {
+          errors.push(`${label}: board image generated but download failed`);
+        }
+      } else if (result.success && result.imageUrl) {
+        // Fallback: single imageUrl
         logger.info('ImageGen', `Generated board: ${label}`, `URL: ${result.imageUrl.slice(0, 80)}...`);
 
         const dataUrl = await ensureDataUrl(result.imageUrl, `board ${label}`);
