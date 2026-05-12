@@ -1,4 +1,4 @@
-import type { AIProvider } from './provider';
+import type { AnalysisProvider } from './provider';
 import { extractJSON } from './extractJSON';
 import { logger } from '@/logger/logger';
 
@@ -21,7 +21,7 @@ export interface RetryOptions {
  * we only send the error context, not the entire input again.
  */
 export async function generateWithRetry<T>(
-  provider: AIProvider,
+  provider: AnalysisProvider,
   prompt: string,
   systemPrompt: string,
   parser: (raw: unknown) => T,

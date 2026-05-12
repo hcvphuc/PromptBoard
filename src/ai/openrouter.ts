@@ -1,7 +1,7 @@
-import type { AIProvider } from './provider';
+import type { AnalysisProvider } from './provider';
 import { proxyFetch } from './proxyFetch';
 
-export class OpenRouterProvider implements AIProvider {
+export class OpenRouterProvider implements AnalysisProvider {
   name = 'OpenRouter';
   private apiKey: string;
   private model: string;
@@ -36,8 +36,8 @@ export class OpenRouterProvider implements AIProvider {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'chrome-extension://promptboard-ai',
-        'X-Title': 'PromptBoard AI',
+        'HTTP-Referer': 'chrome-extension://podcastboard',
+        'X-Title': 'PodcastBoard',
       },
       body: JSON.stringify({
         model: this.model,

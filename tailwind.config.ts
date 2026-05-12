@@ -4,13 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#070A0F',
-        panel: '#111827',
-        card: '#161E2E',
-        border: '#273244',
-        primary: '#F9FAFB',
-        secondary: '#9CA3AF',
-        accent: '#7C3AED',
+        bg: '#050505',
+        panel: '#0B0B0C',
+        card: '#141416',
+        border: '#2A2A2E',
+        primary: '#F7F7F2',
+        secondary: '#A2A2A8',
+        accent: '#F8C741',
+        danger: '#FF6B6B',
         'accent-blue': '#3B82F6',
       },
       fontFamily: {

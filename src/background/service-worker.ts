@@ -31,7 +31,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     return true; // keep channel open for async response
   }
-
   if (message.type === 'DOWNLOAD_FILE') {
     const { dataUrl, filename } = message.payload;
     try {

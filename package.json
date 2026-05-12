@@ -1,12 +1,13 @@
 {
-  "name": "promptboard-ai",
+  "name": "podcastboard",
   "version": "0.1.0",
-  "description": "Turn scripts into character, location, storyboard, and Seedance prompts.",
+  "description": "Turn podcast scripts and voice-over audio into timestamped slide prompts and slide images.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types test_podcast_domain.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

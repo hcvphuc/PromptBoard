@@ -1,8 +1,8 @@
-import type { AIProvider } from './provider';
+import type { AnalysisProvider } from './provider';
 import { proxyFetch } from './proxyFetch';
 
-export class OllamaProvider implements AIProvider {
-  name = 'Ollama';
+export class OllamaCloudProvider implements AnalysisProvider {
+  name = 'Ollama Cloud';
   private baseUrl: string;
   private model: string;
   private apiKey?: string;

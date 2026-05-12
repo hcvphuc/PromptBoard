@@ -1,46 +1,40 @@
-# PromptBoard AI
+# PodcastBoard
 
-Chrome/Edge extension that turns a raw video script into a complete cinematic prompt production package for ChatGPT / AI video generation tools.
+Chrome/Edge extension that turns a two-speaker podcast script plus one MP3/WAV voice-over file into timestamped presentation slide prompts and generated slide images.
 
-## Install
+## Product Shape
 
-1. Build: `npm run build`
-2. Open Chrome → `chrome://extensions/`
-3. Enable Developer mode
-4. Click "Load unpacked" → select the `dist/` folder
-5. Click the PromptBoard AI icon in the toolbar to open the side panel
+PodcastBoard is now a podcast-only codebase with a layered architecture:
+
+- `src/sidepanel`: thin UI shell
+- `src/components/podcast`: presentation components
+- `src/application/podcast`: workflow, export, audio helpers
+- `src/application/providers`: provider factories
+- `src/domain/podcast`: core podcast model, prompt building, parsing, timing
+- `src/adapters/image`: ChatGPT image adapter
+- `src/ai`: analysis and transcription providers
+
+## Workflow
+
+1. Paste a podcast dialogue script with speakers already separated.
+2. Upload one voice-over file (`.mp3` or `.wav`).
+3. Choose a deck template direction or upload a template/reference image.
+4. Transcribe the voice-over with Groq Whisper for exact timing.
+5. Analyze the script with the selected analysis provider.
+6. Generate a master deck template and one image per analyzed section with the ChatGPT image adapter.
+7. Export timestamps JSON, transcript SRT, or a ZIP containing slide images plus metadata.
+
+## Providers
+
+- Analysis: `Mock`, `OpenRouter`, `OpenAI`, `Ollama Cloud`
+- Transcript: `Groq Whisper`
+- Image: `ChatGPT`
 
 ## Dev
 
 ```bash
 npm install
-npm run dev    # Vite dev server for UI preview
-npm run build  # Production build to dist/
+npm run dev
+npm run build
+npm test
 ```
-
-## Features
-
-- **7-step pipeline**: Script → Analysis → Bible → Characters → Locations → Storyboards → Seedance
-- **AI providers**: Mock (demo), OpenRouter, OpenAI, Ollama (local)
-- **Copy-first UX**: Copy any section, copy all, download .md / .json
-- **Dark theme**: Clean, compact, production-ready UI
-- **Side Panel**: Opens as Chrome side panel via extension icon
-- **Persistence**: Saves last script, settings, and output via chrome.storage.local
-
-## Architecture
-
-```
-src/
-├── ai/           — Provider abstraction (Mock, OpenRouter, OpenAI, Ollama)
-├── background/   — Service worker (Manifest V3)
-├── components/   — React UI components
-├── export/       — Markdown & JSON export
-├── pipeline/     — 7-step prompt pipeline
-├── sidepanel/    — Side panel entry (App, HTML, CSS)
-├── storage/      — chrome.storage.local wrapper
-└── types/        — TypeScript interfaces
-```
-
-## Mock Mode
-
-By default, the extension runs in **Mock** mode with pre-built demo data (sci-fi script "The Last Signal"). No API key needed. Click ⚙ to switch to OpenRouter/OpenAI/Ollama.

@@ -4,10 +4,13 @@
 let isRunning = false;
 let runningSince = 0;
 
-// Auto-recovery: clear isRunning after 5 minutes regardless
+const IMAGE_GENERATION_TIMEOUT_MS = 900000;
+const AUTO_RECOVERY_TIMEOUT_MS = 1200000;
+
+// Auto-recovery: clear isRunning after 20 minutes for slow image generations
 setInterval(() => {
-  if (isRunning && Date.now() - runningSince > 300000) {
-    console.warn('[PromptBoard] Auto-recovery: clearing isRunning after 5min timeout');
+  if (isRunning && Date.now() - runningSince > AUTO_RECOVERY_TIMEOUT_MS) {
+    console.warn('[PromptBoard] Auto-recovery: clearing isRunning after 20min timeout');
     isRunning = false;
   }
 }, 60000);
@@ -135,21 +138,35 @@ function findChatInput(): HTMLElement | null {
 
 // ─── Image Detection: Per-Message Approach ───
 // 
-// KEY INSIGHT: Instead of comparing DOM-wide image snapshots (which picks up
-// images from ALL assistant messages, including previous character/location
-// generations), we count assistant messages BEFORE sending, then wait for a
-// NEW assistant message to appear, and only capture images from THAT message.
+// KEY INSIGHT: ChatGPT DOM changes frequently. Newer builds may mark both
+// user and assistant messages with data-message-author-role="user", but every
+// conversation message has data-message-id. Count all message nodes before
+// sending, wait for the next node, then only inspect images inside that node.
 //
 // This completely eliminates cross-contamination between generation phases.
 
-/** Get all assistant message elements in the conversation */
-function getAssistantMessages(): HTMLElement[] {
-  return Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'));
+/** Get all message elements in the conversation */
+function getAllMessages(): HTMLElement[] {
+  const selectors = [
+    '[data-message-id]',
+    '[data-testid^="conversation-turn-"]',
+    '[data-message-author-role]',
+    'article',
+    '[class*="conversation-turn"]',
+  ];
+  const seen = new Set<HTMLElement>();
+  for (const selector of selectors) {
+    for (const el of Array.from(document.querySelectorAll(selector)) as HTMLElement[]) {
+      if (el.offsetParent !== null) seen.add(el);
+    }
+    if (seen.size > 0) break;
+  }
+  return Array.from(seen);
 }
 
-/** Count assistant messages currently in the DOM */
-function countAssistantMessages(): number {
-  return getAssistantMessages().length;
+/** Count messages currently in the DOM */
+function countAllMessages(): number {
+  return getAllMessages().length;
 }
 
 /** Get images from a specific assistant message element.
@@ -173,22 +190,163 @@ function getImagesFromMessage(msgEl: HTMLElement): HTMLImageElement[] {
   });
 }
 
-/** Wait for a NEW assistant message to appear (count > beforeCount).
+function getImageUrlsFromMessage(msgEl: HTMLElement): string[] {
+  const urls: string[] = [];
+
+  for (const img of getImagesFromMessage(msgEl)) {
+    const src = img.currentSrc || img.src || img.getAttribute('src') || img.getAttribute('data-src') || '';
+    if (src) urls.push(src);
+
+    const srcset = img.getAttribute('srcset');
+    if (srcset) {
+      const lastCandidate = srcset.split(',').map((part) => part.trim().split(/\s+/)[0]).filter(Boolean).pop();
+      if (lastCandidate) urls.push(lastCandidate);
+    }
+  }
+
+  for (const link of Array.from(msgEl.querySelectorAll('a[href]'))) {
+    const href = (link as HTMLAnchorElement).href;
+    if (
+      href.includes('/backend-api/estuary/content') ||
+      href.includes('oaiusercontent.com') ||
+      href.includes('oaidalleapiprodscus.blob.core.windows.net')
+    ) {
+      urls.push(href);
+    }
+  }
+
+  for (const el of Array.from(msgEl.querySelectorAll<HTMLElement>('[style*="background-image"]'))) {
+    const match = el.style.backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+    if (match?.[1]) urls.push(match[1]);
+  }
+
+  return Array.from(new Set(urls)).filter((src) => {
+    if (!src) return false;
+    if (src.startsWith('data:')) return false;
+    if (src.includes('favicon') || src.includes('avatar') || src.includes('logo')) return false;
+    if (src.includes('svg') || src.endsWith('.svg')) return false;
+    return true;
+  });
+}
+
+function getImageUrlsFromRoot(root: ParentNode): string[] {
+  const urls: string[] = [];
+
+  for (const img of Array.from(root.querySelectorAll('img'))) {
+    const el = img as HTMLImageElement;
+    const src = el.currentSrc || el.src || el.getAttribute('src') || el.getAttribute('data-src') || '';
+    const w = el.naturalWidth || el.width || el.clientWidth;
+    const h = el.naturalHeight || el.height || el.clientHeight;
+    if (src && !(w > 0 && h > 0 && w < 30 && h < 30)) urls.push(src);
+    const srcset = el.getAttribute('srcset');
+    if (srcset) {
+      const lastCandidate = srcset.split(',').map((part) => part.trim().split(/\s+/)[0]).filter(Boolean).pop();
+      if (lastCandidate) urls.push(lastCandidate);
+    }
+  }
+
+  for (const link of Array.from(root.querySelectorAll('a[href]'))) {
+    const href = (link as HTMLAnchorElement).href;
+    if (
+      href.includes('/backend-api/estuary/content') ||
+      href.includes('oaiusercontent.com') ||
+      href.includes('oaidalleapiprodscus.blob.core.windows.net')
+    ) {
+      urls.push(href);
+    }
+  }
+
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>('[style*="background-image"]'))) {
+    const match = el.style.backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+    if (match?.[1]) urls.push(match[1]);
+  }
+
+  return Array.from(new Set(urls)).filter((src) => {
+    if (!src) return false;
+    if (src.startsWith('data:')) return false;
+    if (src.includes('favicon') || src.includes('avatar') || src.includes('logo')) return false;
+    if (src.includes('svg') || src.endsWith('.svg')) return false;
+    return true;
+  });
+}
+
+async function waitForImagesInNewMessages(
+  beforeCount: number,
+  beforeImageUrls: Set<string>,
+  timeoutMs: number,
+  stableMs: number = 2000,
+  minImages: number = 1,
+): Promise<string[]> {
+  const start = Date.now();
+  let lastSrcs: string[] = [];
+  let lastChangeTime = Date.now();
+  let lastLogAt = start;
+
+  while (Date.now() - start < timeoutMs) {
+    const messages = getAllMessages();
+    const newMessages = messages.slice(beforeCount);
+    // The first new message is usually the user's submitted prompt. Generated
+    // images arrive in the following ChatGPT response message.
+    const scanMessages = newMessages.length > 1
+      ? newMessages.slice(1)
+      : (Date.now() - start > 15000 ? newMessages : []);
+
+    const scopedSrcs = scanMessages.flatMap(getImageUrlsFromMessage);
+    const documentNewSrcs = getImageUrlsFromRoot(document).filter((src) => !beforeImageUrls.has(src));
+    const currentSrcs = Array.from(new Set([...scopedSrcs, ...documentNewSrcs]));
+
+    if (currentSrcs.length >= minImages) {
+      if (currentSrcs.length !== lastSrcs.length || JSON.stringify(currentSrcs) !== JSON.stringify(lastSrcs)) {
+        lastSrcs = currentSrcs;
+        lastChangeTime = Date.now();
+      } else if (Date.now() - lastChangeTime >= stableMs) {
+        console.log(`[PromptBoard] Detected ${lastSrcs.length} stable image URL(s) across new messages`);
+        return lastSrcs;
+      }
+    }
+
+    if (Date.now() - lastLogAt >= 30000) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[PromptBoard] Still waiting for generated image... (${elapsed}s elapsed, ${currentSrcs.length} image URL(s), ${newMessages.length} new message(s), ${getAllMessages().length} total message node(s))`);
+      lastLogAt = Date.now();
+    }
+
+    await sleep(1500);
+  }
+
+  if (lastSrcs.length > 0) {
+    console.warn(`[PromptBoard] Timeout but returning ${lastSrcs.length} image URL(s) from new messages`);
+    return lastSrcs;
+  }
+
+  return [];
+}
+
+/** Wait for a NEW message to appear (count > beforeCount).
  *  Returns the new message element. */
-async function waitForNewAssistantMessage(
+async function waitForNewMessage(
   timeoutMs: number,
   beforeCount: number,
 ): Promise<HTMLElement> {
   const start = Date.now();
+  let lastLogAt = start;
   while (Date.now() - start < timeoutMs) {
-    const messages = getAssistantMessages();
+    const messages = getAllMessages();
     if (messages.length > beforeCount) {
       // Return the LAST message (newest)
       return messages[messages.length - 1];
     }
+    if (Date.now() - lastLogAt >= 30000) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[PromptBoard] Still waiting for new message... (${elapsed}s elapsed)`);
+      lastLogAt = Date.now();
+    }
     await sleep(1000);
   }
-  throw new Error('Timeout waiting for new assistant message');
+
+  const finalMessages = getAllMessages();
+  if (finalMessages.length > beforeCount) return finalMessages[finalMessages.length - 1];
+  throw new Error('Timeout waiting for new ChatGPT message');
 }
 
 /** Wait for images to appear in a specific message and stabilize.
@@ -201,14 +359,19 @@ async function waitForImagesInMessage(
   minImages: number = 1,
 ): Promise<string[]> {
   const start = Date.now();
+  const messageId = msgEl.getAttribute('data-message-id');
   let lastSrcs: string[] = [];
   let lastChangeTime = Date.now();
+  let lastLogAt = start;
 
   // Wait a bit for initial rendering
   await sleep(2000);
 
   while (Date.now() - start < timeoutMs) {
-    const imgs = getImagesFromMessage(msgEl);
+    const liveMsg = messageId
+      ? (document.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`) as HTMLElement | null) || msgEl
+      : msgEl;
+    const imgs = getImagesFromMessage(liveMsg);
     const currentSrcs = imgs
       .map(img => img.src || img.getAttribute('src') || '')
       .filter(src => src.length > 0);
@@ -235,21 +398,10 @@ async function waitForImagesInMessage(
       return currentSrcs;
     }
 
-    // Message finished with NO images at all (text-only response or failed generation)
-    if (!stopBtn && Date.now() - start > 15000) {
-      // Re-check the message — maybe images haven't loaded yet
-      const recheckImgs = getImagesFromMessage(msgEl);
-      if (recheckImgs.length === 0) {
-        // Check if there's a "regenerate" button — that means generation completed
-        const regenBtn = msgEl.querySelector('button[aria-label*="egenerate"], button[data-testid*="regenerate"]');
-        if (regenBtn || !stopBtn) {
-          // Wait a bit more — sometimes images load after text
-          if (Date.now() - start > 30000 && currentSrcs.length === 0) {
-            console.warn('[PromptBoard] No images found in message after 30s — generation may have failed');
-            return [];
-          }
-        }
-      }
+    if (Date.now() - lastLogAt >= 30000) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[PromptBoard] Still waiting for image in message... (${elapsed}s elapsed, ${currentSrcs.length} image(s) found)`);
+      lastLogAt = Date.now();
     }
 
     await sleep(1500);
@@ -375,18 +527,14 @@ async function fillAndSubmitChatGPT(text: string): Promise<void> {
 async function generateImageFlow(prompt: string): Promise<{ success: boolean; imageUrl?: string; imageUrls?: string[]; error?: string }> {
   try {
     // Count assistant messages BEFORE sending
-    const msgCountBefore = countAssistantMessages();
-    console.log(`[PromptBoard] generateImageFlow: ${msgCountBefore} assistant messages before`);
+    const msgCountBefore = countAllMessages();
+    const imageUrlsBefore = new Set(getImageUrlsFromRoot(document));
+    console.log(`[PromptBoard] generateImageFlow: ${msgCountBefore} messages before`);
 
     // Fill and submit with "Create image" mode
     await fillAndSubmitChatGPT(prompt);
 
-    // Wait for a NEW assistant message to appear
-    const newMsg = await waitForNewAssistantMessage(240000, msgCountBefore);
-    console.log('[PromptBoard] New assistant message detected');
-
-    // Wait for images in THAT specific message only
-    const imageUrls = await waitForImagesInMessage(newMsg, 240000, 2000, 1);
+    const imageUrls = await waitForImagesInNewMessages(msgCountBefore, imageUrlsBefore, IMAGE_GENERATION_TIMEOUT_MS, 2000, 1);
 
     if (imageUrls.length === 0) {
       return { success: false, error: 'No image generated in response' };
@@ -410,14 +558,13 @@ async function generateImageWithRefsFlow(
   refImageDataUrls: string[]
 ): Promise<{ success: boolean; imageUrl?: string; imageUrls?: string[]; error?: string }> {
   try {
-    // Count assistant messages BEFORE sending
-    const msgCountBefore = countAssistantMessages();
-    console.log(`[PromptBoard] generateImageWithRefsFlow: ${msgCountBefore} assistant messages before`);
-
     // STEP 1: Focus chat input area
     const inputEl = await waitFor(findChatInput, 10000, 'chat input');
     inputEl.focus();
     await sleep(300);
+    document.execCommand('selectAll', false);
+    document.execCommand('delete', false);
+    await sleep(100);
 
     // STEP 2: Attach reference images — try multiple methods
     let attached = false;
@@ -450,13 +597,17 @@ async function generateImageWithRefsFlow(
     // Verify attachments appeared in DOM
     await waitForAttachmentIndicator(5000);
 
-    // STEP 3: Type the prompt after attaching images
+    // Snapshot AFTER attaching ref images — prevents ref images from being
+    // falsely detected as new generated images when waitForImagesInNewMessages runs.
+    const msgCountBefore = countAllMessages();
+    const imageUrlsBefore = new Set(getImageUrlsFromRoot(document));
+    console.log(`[PromptBoard] generateImageWithRefsFlow: ${msgCountBefore} messages before`);
+
+    // STEP 3: Type the prompt after attaching images.
+    // Do not selectAll/delete here: ChatGPT may keep pasted/uploaded images
+    // inside the composer, and clearing after attachment removes the refs.
     inputEl.focus();
     await sleep(200);
-    document.execCommand('selectAll', false);
-    document.execCommand('delete', false);
-    await sleep(50);
-    inputEl.focus();
     document.execCommand('insertText', false, prompt);
     await sleep(500);
 
@@ -538,11 +689,12 @@ async function generateImageWithRefsFlow(
       return { success: false, error: 'Failed to find Send button or send via Enter after all retries' };
     }
 
-    // STEP 5: Wait for NEW assistant message, then get images from THAT message only
-    const newMsg = await waitForNewAssistantMessage(300000, msgCountBefore);
-    console.log('[PromptBoard] New assistant message detected (with refs)');
-
-    const imageUrls = await waitForImagesInMessage(newMsg, 300000, 2000, 1);
+    // STEP 4: Wait for new generated images.
+    // We do NOT use message counting — getAllMessages() is unreliable on
+    // newer ChatGPT builds (may always return 1). Instead we rely purely on
+    // imageUrlsBefore snapshot (taken AFTER refs were attached) to filter
+    // out ref images and only detect genuinely new generated images.
+    const imageUrls = await waitForNewImageUrls(imageUrlsBefore, IMAGE_GENERATION_TIMEOUT_MS, 2000, 1);
 
     if (imageUrls.length === 0) {
       return { success: false, error: 'No image generated in response' };
@@ -558,12 +710,55 @@ async function generateImageWithRefsFlow(
   }
 }
 
+// ─── Wait for new image URLs (message-count-free, uses only URL snapshot) ───
+
+async function waitForNewImageUrls(
+  beforeUrls: Set<string>,
+  timeoutMs: number,
+  stableMs: number = 2000,
+  minImages: number = 1,
+): Promise<string[]> {
+  const start = Date.now();
+  let lastSrcs: string[] = [];
+  let lastChangeTime = Date.now();
+  let lastLogAt = start;
+
+  while (Date.now() - start < timeoutMs) {
+    const allUrls = getImageUrlsFromRoot(document);
+    const newUrls = allUrls.filter(url => !beforeUrls.has(url));
+
+    if (newUrls.length >= minImages) {
+      if (newUrls.length !== lastSrcs.length || JSON.stringify(newUrls) !== JSON.stringify(lastSrcs)) {
+        lastSrcs = newUrls;
+        lastChangeTime = Date.now();
+      } else if (Date.now() - lastChangeTime >= stableMs) {
+        console.log(`[PromptBoard] Detected ${lastSrcs.length} stable new image URL(s)`);
+        return lastSrcs;
+      }
+    }
+
+    if (Date.now() - lastLogAt >= 30000) {
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[PromptBoard] Still waiting for generated image... (${elapsed}s elapsed, ${newUrls.length} new URL(s))`);
+      lastLogAt = Date.now();
+    }
+
+    await sleep(1500);
+  }
+
+  if (lastSrcs.length > 0) {
+    console.warn(`[PromptBoard] Timeout but returning ${lastSrcs.length} new image URL(s)`);
+    return lastSrcs;
+  }
+
+  return [];
+}
+
 // ─── Attachment Method 1: Clipboard paste ───
 
 async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
   try {
-    let anySuccess = false;
-
+    const beforeCount = countAttachmentIndicators();
     for (const dataUrl of refImageDataUrls) {
       const file = dataUrlToFile(dataUrl);
       if (!file) continue;
@@ -584,12 +779,12 @@ async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string
       inputEl.focus();
       await sleep(200);
       document.execCommand('paste');
-      await sleep(2000);
-
-      anySuccess = true;
+      await sleep(2500);
     }
 
-    return anySuccess;
+    const attached = await waitForAttachmentIndicator(5000, beforeCount);
+    console.log(`[PromptBoard] Clipboard attachment ${attached ? 'confirmed' : 'not detected'}`);
+    return attached;
   } catch (err) {
     console.warn('[PromptBoard] Clipboard paste failed:', err);
     return false;
@@ -600,6 +795,7 @@ async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string
 
 async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
   try {
+    const beforeCount = countAttachmentIndicators();
     const attachBtn = document.querySelector('button[data-testid="composer-plus-btn"]')
       || document.querySelector('button[aria-label="Attach files"]')
       || document.querySelector('button[aria-label="Attach"]');
@@ -630,9 +826,11 @@ async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string
 
     fileInput.files = dt.files;
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-    await sleep(2000);
+    await sleep(2500);
 
-    return dt.items.length > 0;
+    const attached = dt.items.length > 0 && await waitForAttachmentIndicator(7000, beforeCount);
+    console.log(`[PromptBoard] File-input attachment ${attached ? 'confirmed' : 'not detected'}`);
+    return attached;
   } catch (err) {
     console.warn('[PromptBoard] File input trigger failed:', err);
     return false;
@@ -643,18 +841,18 @@ async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string
 
 async function attachViaDrop(zone: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
   try {
-    let anySuccess = false;
-
+    const beforeCount = countAttachmentIndicators();
     for (const dataUrl of refImageDataUrls) {
       const file = dataUrlToFile(dataUrl);
       if (!file) continue;
 
-      const dropped = await dropFileIntoZone(zone, file);
-      if (dropped) anySuccess = true;
+      await dropFileIntoZone(zone, file);
       await sleep(1500);
     }
 
-    return anySuccess;
+    const attached = await waitForAttachmentIndicator(7000, beforeCount);
+    console.log(`[PromptBoard] Drop attachment ${attached ? 'confirmed' : 'not detected'}`);
+    return attached;
   } catch (err) {
     console.warn('[PromptBoard] Drop failed:', err);
     return false;
@@ -730,14 +928,17 @@ async function dropFileIntoZone(zone: HTMLElement, file: File): Promise<boolean>
   }
 }
 
+function countAttachmentIndicators(): number {
+  return document.querySelectorAll(
+    '[class*="attachment"], [class*="file-preview"], [class*="uploaded"], [data-testid*="attachment"], [class*="Attachment"], [class*="FilePreview"], [data-testid*="file"], [aria-label*="image"], [aria-label*="Image"]'
+  ).length;
+}
+
 /** Wait for attachment indicator in DOM */
-async function waitForAttachmentIndicator(timeoutMs: number): Promise<boolean> {
+async function waitForAttachmentIndicator(timeoutMs: number, beforeCount = 0): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const has = document.querySelector(
-      '[class*="attachment"], [class*="file-preview"], [class*="uploaded"], [data-testid*="attachment"], [class*="Attachment"], [class*="FilePreview"]'
-    );
-    if (has) return true;
+    if (countAttachmentIndicators() > beforeCount) return true;
     await sleep(500);
   }
   return false;
@@ -767,7 +968,7 @@ function dataUrlToFile(dataUrl: string): File | null {
 // Kept as fallback but NOT used by the main flows anymore.
 
 function snapshotImageSrcs(): Set<string> {
-  const images = document.querySelectorAll('[data-message-author-role="assistant"] img');
+  const images = document.querySelectorAll('[data-message-id] img');
   const srcs = new Set<string>();
   images.forEach((img) => {
     const el = img as HTMLImageElement;
@@ -830,8 +1031,8 @@ async function extractShotsFlow(
 ): Promise<{ success: boolean; imageUrls?: string[]; error?: string }> {
   try {
     // Count assistant messages BEFORE sending
-    const msgCountBefore = countAssistantMessages();
-    console.log(`[PromptBoard] extractShotsFlow: ${msgCountBefore} assistant messages before`);
+    const msgCountBefore = countAllMessages();
+    console.log(`[PromptBoard] extractShotsFlow: ${msgCountBefore} messages before`);
 
     // STEP 1: Focus chat input area
     const inputEl = await waitFor(findChatInput, 10000, 'chat input');
@@ -906,7 +1107,7 @@ async function extractShotsFlow(
     }
 
     // STEP 5: Wait for new assistant message, then get images from THAT message only
-    const newMsg = await waitForNewAssistantMessage(300000, msgCountBefore);
+    const newMsg = await waitForNewMessage(300000, msgCountBefore);
     console.log('[PromptBoard] New assistant message detected (extract shots)');
 
     const imageUrls = await waitForImagesInMessage(newMsg, 300000, 2000, expectedCount);
@@ -924,19 +1125,22 @@ async function extractShotsFlow(
 // ─── Download image as data URL (runs in ChatGPT tab context to avoid CORS) ───
 
 async function downloadImageAsDataUrl(imageUrl: string): Promise<string | null> {
-  try {
-    const response = await fetch(imageUrl, { mode: 'cors' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(imageUrl, { mode: 'cors', credentials: 'include' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (err) {
-    console.warn('[PromptBoard] Download image failed:', err);
-    return null;
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.warn(`[PromptBoard] Download image failed (attempt ${attempt}/3):`, err);
+      await sleep(1000 * attempt);
+    }
   }
+  return null;
 }

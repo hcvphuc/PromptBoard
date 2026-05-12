@@ -20,11 +20,20 @@ function sleep(ms: number): Promise<void> {
 
 /** Ensure a ChatGPT tab is open. If isNewChatSession, opens a new chat. Otherwise reuses existing conversation. */
 async function ensureChatGPTTab(): Promise<number> {
-  // If we need a fresh chat, always open a new one
+  // If we need a fresh chat, reload/reuse a ChatGPT tab so the composer does
+  // not stay stuck after a previous image generation.
   if (isNewChatSession) {
-    // Close existing tab if we had one (optional — just open new)
-    const newTab = await chrome.tabs.create({ url: 'https://chatgpt.com/', active: true });
-    chatgptTabId = newTab.id!;
+    const allTabs = await chrome.tabs.query({ url: 'https://chatgpt.com/*' });
+    const reusableTab = (chatgptTabId ? allTabs.find(t => t.id === chatgptTabId) : null) || allTabs[0];
+
+    if (reusableTab?.id) {
+      chatgptTabId = reusableTab.id;
+      await chrome.tabs.update(chatgptTabId, { url: 'https://chatgpt.com/', active: true });
+    } else {
+      const newTab = await chrome.tabs.create({ url: 'https://chatgpt.com/', active: true });
+      chatgptTabId = newTab.id!;
+    }
+
     lastConversationUrl = null;
     isNewChatSession = false; // Next calls in this batch reuse the conversation
     await waitForTabLoad(chatgptTabId);
@@ -154,7 +163,7 @@ export async function generateImage(prompt: string): Promise<ChatGPTMessageResul
     const response = await sendMessageToTab(tabId, {
       type: 'GENERATE_IMAGE',
       text: prompt,
-    }, 300000); // 5 min timeout
+    }, 900000); // 15 min timeout for slow ChatGPT image generation
 
     captureConversationUrl(response);
 
@@ -190,7 +199,7 @@ export async function generateImageWithRefs(
       type: 'GENERATE_IMAGE_WITH_REFS',
       text: prompt,
       refImages: refImageDataUrls,
-    }, 600000); // 10 min timeout for refs (slower)
+    }, 900000); // 15 min timeout for refs (slower)
 
     captureConversationUrl(response);
 

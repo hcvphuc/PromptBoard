@@ -1,18 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "PromptBoard AI",
+  "name": "PodcastBoard",
   "version": "0.1.0",
-  "description": "Turn scripts into character, location, storyboard, and Seedance prompts.",
+  "description": "Turn podcast scripts and voice-over audio into timestamped presentation slide images.",
   "permissions": ["storage", "sidePanel", "clipboardWrite", "activeTab", "scripting", "downloads"],
   "host_permissions": [
     "https://openrouter.ai/*",
     "https://api.openai.com/*",
+    "https://api.groq.com/*",
     "https://ollama.com/*",
     "http://localhost/*",
+    "http://127.0.0.1/*",
     "https://chatgpt.com/*"
   ],
   "action": {
-    "default_title": "Open PromptBoard AI"
+    "default_title": "Open PodcastBoard"
   },
   "background": {
     "service_worker": "background.js",

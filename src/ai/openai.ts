@@ -1,7 +1,7 @@
-import type { AIProvider } from './provider';
+import type { AnalysisProvider } from './provider';
 import { proxyFetch } from './proxyFetch';
 
-export class OpenAIProvider implements AIProvider {
+export class OpenAIProvider implements AnalysisProvider {
   name = 'OpenAI';
   private apiKey: string;
   private model: string;
