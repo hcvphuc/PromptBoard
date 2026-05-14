@@ -132,6 +132,7 @@ export interface PodcastProject {
     characterOne?: PodcastReferenceImage;
     characterTwo?: PodcastReferenceImage;
     locationReference?: PodcastReferenceImage;
+    locationDescription?: string;
   };
   settings: PodcastSettings;
   providers: ProviderSelection;

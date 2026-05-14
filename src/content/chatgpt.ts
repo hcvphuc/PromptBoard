@@ -22,6 +22,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
+  if (message.type === 'CHECK_CHATGPT_LANGUAGE') {
+    sendResponse(detectChatGPTLanguage());
+    return false;
+  }
+
   if (message.type === 'SEND_PROMPT_TO_CHATGPT') {
     if (isRunning) {
       sendResponse({ success: false, error: 'Already running' });
@@ -92,6 +97,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function detectChatGPTLanguage(): { success: boolean; locale?: string; isVietnamese: boolean } {
+  const candidates: string[] = [
+    document.documentElement.getAttribute('lang') || '',
+    navigator.language || '',
+    ...(navigator.languages || []),
+  ];
+
+  try {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index) || '';
+        if (!/(locale|language|lang|i18n)/i.test(key)) continue;
+        const value = storage.getItem(key) || '';
+        candidates.push(key, value);
+      }
+    }
+  } catch {
+    // Ignore storage access failures. The document language is the primary signal.
+  }
+
+  const locale = candidates
+    .map((value) => value.trim())
+    .find((value) => /^vi(?:-|_|$)/i.test(value) || /vi[-_]VN/i.test(value))
+    || candidates.map((value) => value.trim()).find(Boolean);
+
+  return {
+    success: true,
+    locale,
+    isVietnamese: candidates.some((value) => /^vi(?:-|_|$)/i.test(value.trim()) || /vi[-_]VN/i.test(value)),
+  };
 }
 
 function realClick(el: HTMLElement): void {
@@ -270,6 +307,52 @@ function getImageUrlsFromRoot(root: ParentNode): string[] {
   });
 }
 
+function findImageChoiceButton(): HTMLElement | null {
+  const buttons = Array.from(document.querySelectorAll('button')) as HTMLButtonElement[];
+  for (const button of buttons) {
+    if (button.disabled || button.offsetParent === null) continue;
+    const text = (button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (text === 'image 1 is better' || text === 'image 1' || text.includes('image 1 is better')) {
+      return button;
+    }
+  }
+  return null;
+}
+
+function findImageChoicePrompt(): HTMLElement | null {
+  const candidates = Array.from(document.querySelectorAll('h1, h2, h3, div, p, span')) as HTMLElement[];
+  return candidates.find((el) => {
+    if (el.offsetParent === null) return false;
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return text === 'which image do you like more?';
+  }) || null;
+}
+
+async function autoResolveImageChoiceIfPresent(): Promise<boolean> {
+  const choiceButton = findImageChoiceButton();
+  if (!choiceButton) return false;
+
+  const hasPrompt = Boolean(findImageChoicePrompt());
+  console.log(`[PromptBoard] Detected ChatGPT image-choice UI${hasPrompt ? '' : ' via button'}; selecting Image 1`);
+  realClick(choiceButton);
+  await sleep(2500);
+  return true;
+}
+
+function detectReferenceMissingReply(root: ParentNode): string | null {
+  const text = ((root as HTMLElement).innerText || root.textContent || '').replace(/\s+/g, ' ').trim();
+  const lower = text.toLowerCase();
+  const patterns = [
+    'reference images are not available',
+    'speaker reference images are not available',
+    'character images are not available',
+    'please re-upload the character images',
+    'please re-upload the 2 speaker images',
+    'please re-upload the speaker images',
+  ];
+  return patterns.find((pattern) => lower.includes(pattern)) || null;
+}
+
 async function waitForImagesInNewMessages(
   beforeCount: number,
   beforeImageUrls: Set<string>,
@@ -283,6 +366,8 @@ async function waitForImagesInNewMessages(
   let lastLogAt = start;
 
   while (Date.now() - start < timeoutMs) {
+    await autoResolveImageChoiceIfPresent();
+
     const messages = getAllMessages();
     const newMessages = messages.slice(beforeCount);
     // The first new message is usually the user's submitted prompt. Generated
@@ -567,40 +652,53 @@ async function generateImageWithRefsFlow(
     await sleep(100);
 
     // STEP 2: Attach reference images — try multiple methods
+    const requiredRefCount = refImageDataUrls.length;
+    const composerRoot = findComposerRoot(inputEl) || document;
+    const attachmentCountBefore = countAttachmentIndicators(composerRoot);
+    const documentAttachmentCountBefore = countAttachmentIndicators(document);
     let attached = false;
 
     // Method 1: Clipboard paste (most reliable with React apps)
     if (!attached) {
-      attached = await attachViaClipboard(inputEl, refImageDataUrls);
+      attached = await attachViaClipboard(inputEl, refImageDataUrls, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
     }
 
     // Method 2: File input trigger via Plus/Attach button
     if (!attached) {
-      attached = await attachViaFileInput(inputEl, refImageDataUrls);
+      attached = await waitForAttachmentConfirmation(1000, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
+    }
+    if (!attached) {
+      attached = await attachViaFileInput(inputEl, refImageDataUrls, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
     }
 
     // Method 3: Synthetic DragEvent drop (fallback)
     if (!attached) {
+      attached = await waitForAttachmentConfirmation(1000, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
+    }
+    if (!attached) {
       const dropZone = findDropZone();
       if (dropZone) {
-        attached = await attachViaDrop(dropZone, refImageDataUrls);
+        attached = await attachViaDrop(dropZone, refImageDataUrls, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
       }
     }
 
-    if (!attached) {
-      console.warn('[PromptBoard] All attachment methods failed — generating without refs');
+    // Wait for attachments to be processed and enforce them. Generating without
+    // refs produces bad "please re-upload images" replies, so fail early instead.
+    const verifiedAttachment = requiredRefCount === 0 || await waitForAttachmentConfirmation(7000, attachmentCountBefore, documentAttachmentCountBefore, requiredRefCount, composerRoot);
+    if (requiredRefCount > 0 && (!attached || !verifiedAttachment)) {
+      return {
+        success: false,
+        error: `Reference image attachment failed. Expected ${requiredRefCount} image(s), but ChatGPT did not confirm them in the composer. Reopen ChatGPT and retry.`,
+      };
     }
 
-    // Wait for attachments to be processed
     await sleep(3000);
-
-    // Verify attachments appeared in DOM
-    await waitForAttachmentIndicator(5000);
 
     // Snapshot AFTER attaching ref images — prevents ref images from being
     // falsely detected as new generated images when waitForImagesInNewMessages runs.
     const msgCountBefore = countAllMessages();
     const imageUrlsBefore = new Set(getImageUrlsFromRoot(document));
+    const referenceImageUrls = new Set(getImageUrlsFromRoot(document));
     console.log(`[PromptBoard] generateImageWithRefsFlow: ${msgCountBefore} messages before`);
 
     // STEP 3: Type the prompt after attaching images.
@@ -694,7 +792,7 @@ async function generateImageWithRefsFlow(
     // newer ChatGPT builds (may always return 1). Instead we rely purely on
     // imageUrlsBefore snapshot (taken AFTER refs were attached) to filter
     // out ref images and only detect genuinely new generated images.
-    const imageUrls = await waitForNewImageUrls(imageUrlsBefore, IMAGE_GENERATION_TIMEOUT_MS, 2000, 1);
+    const imageUrls = await waitForNewImageUrls(imageUrlsBefore, IMAGE_GENERATION_TIMEOUT_MS, 2000, 1, msgCountBefore, referenceImageUrls);
 
     if (imageUrls.length === 0) {
       return { success: false, error: 'No image generated in response' };
@@ -717,6 +815,8 @@ async function waitForNewImageUrls(
   timeoutMs: number,
   stableMs: number = 2000,
   minImages: number = 1,
+  beforeMessageCount?: number,
+  excludedUrls: Set<string> = new Set(),
 ): Promise<string[]> {
   const start = Date.now();
   let lastSrcs: string[] = [];
@@ -724,8 +824,35 @@ async function waitForNewImageUrls(
   let lastLogAt = start;
 
   while (Date.now() - start < timeoutMs) {
+    await autoResolveImageChoiceIfPresent();
+
+    const dynamicExcludedUrls = new Set(excludedUrls);
+    const composerRoot = findComposerRoot();
+    if (composerRoot) {
+      for (const url of getImageUrlsFromRoot(composerRoot)) {
+        dynamicExcludedUrls.add(url);
+      }
+    }
+
+    if (typeof beforeMessageCount === 'number') {
+      const newMessages = getAllMessages().slice(beforeMessageCount);
+      // The first new message is the user's prompt with attached refs. Those
+      // images can appear after our initial snapshot, so exclude them forever.
+      if (newMessages[0]) {
+        for (const url of getImageUrlsFromMessage(newMessages[0])) {
+          dynamicExcludedUrls.add(url);
+        }
+      }
+      for (const message of newMessages) {
+        const missingRefs = detectReferenceMissingReply(message);
+        if (missingRefs) {
+          throw new Error(`ChatGPT did not receive the attached reference images (${missingRefs}). Retry after reopening the ChatGPT tab.`);
+        }
+      }
+    }
+
     const allUrls = getImageUrlsFromRoot(document);
-    const newUrls = allUrls.filter(url => !beforeUrls.has(url));
+    const newUrls = allUrls.filter(url => !beforeUrls.has(url) && !dynamicExcludedUrls.has(url));
 
     if (newUrls.length >= minImages) {
       if (newUrls.length !== lastSrcs.length || JSON.stringify(newUrls) !== JSON.stringify(lastSrcs)) {
@@ -756,9 +883,15 @@ async function waitForNewImageUrls(
 
 // ─── Attachment Method 1: Clipboard paste ───
 
-async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
+async function attachViaClipboard(
+  inputEl: HTMLElement,
+  refImageDataUrls: string[],
+  beforeCount = countAttachmentIndicators(),
+  beforeDocumentCount = countAttachmentIndicators(document),
+  expectedCount = refImageDataUrls.length,
+  root: ParentNode = document,
+): Promise<boolean> {
   try {
-    const beforeCount = countAttachmentIndicators();
     for (const dataUrl of refImageDataUrls) {
       const file = dataUrlToFile(dataUrl);
       if (!file) continue;
@@ -782,7 +915,7 @@ async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string
       await sleep(2500);
     }
 
-    const attached = await waitForAttachmentIndicator(5000, beforeCount);
+    const attached = await waitForAttachmentConfirmation(5000, beforeCount, beforeDocumentCount, expectedCount, root);
     console.log(`[PromptBoard] Clipboard attachment ${attached ? 'confirmed' : 'not detected'}`);
     return attached;
   } catch (err) {
@@ -793,9 +926,15 @@ async function attachViaClipboard(inputEl: HTMLElement, refImageDataUrls: string
 
 // ─── Attachment Method 2: File input trigger ───
 
-async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
+async function attachViaFileInput(
+  inputEl: HTMLElement,
+  refImageDataUrls: string[],
+  beforeCount = countAttachmentIndicators(),
+  beforeDocumentCount = countAttachmentIndicators(document),
+  expectedCount = refImageDataUrls.length,
+  root: ParentNode = document,
+): Promise<boolean> {
   try {
-    const beforeCount = countAttachmentIndicators();
     const attachBtn = document.querySelector('button[data-testid="composer-plus-btn"]')
       || document.querySelector('button[aria-label="Attach files"]')
       || document.querySelector('button[aria-label="Attach"]');
@@ -828,7 +967,7 @@ async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     await sleep(2500);
 
-    const attached = dt.items.length > 0 && await waitForAttachmentIndicator(7000, beforeCount);
+    const attached = dt.items.length > 0 && await waitForAttachmentConfirmation(7000, beforeCount, beforeDocumentCount, expectedCount, root);
     console.log(`[PromptBoard] File-input attachment ${attached ? 'confirmed' : 'not detected'}`);
     return attached;
   } catch (err) {
@@ -839,9 +978,15 @@ async function attachViaFileInput(inputEl: HTMLElement, refImageDataUrls: string
 
 // ─── Attachment Method 3: DragEvent drop ───
 
-async function attachViaDrop(zone: HTMLElement, refImageDataUrls: string[]): Promise<boolean> {
+async function attachViaDrop(
+  zone: HTMLElement,
+  refImageDataUrls: string[],
+  beforeCount = countAttachmentIndicators(),
+  beforeDocumentCount = countAttachmentIndicators(document),
+  expectedCount = refImageDataUrls.length,
+  root: ParentNode = document,
+): Promise<boolean> {
   try {
-    const beforeCount = countAttachmentIndicators();
     for (const dataUrl of refImageDataUrls) {
       const file = dataUrlToFile(dataUrl);
       if (!file) continue;
@@ -850,7 +995,7 @@ async function attachViaDrop(zone: HTMLElement, refImageDataUrls: string[]): Pro
       await sleep(1500);
     }
 
-    const attached = await waitForAttachmentIndicator(7000, beforeCount);
+    const attached = await waitForAttachmentConfirmation(7000, beforeCount, beforeDocumentCount, expectedCount, root);
     console.log(`[PromptBoard] Drop attachment ${attached ? 'confirmed' : 'not detected'}`);
     return attached;
   } catch (err) {
@@ -893,6 +1038,26 @@ function findDropZone(): HTMLElement | null {
   return null;
 }
 
+function findComposerRoot(inputEl?: HTMLElement | null): HTMLElement | null {
+  const start = inputEl || findChatInput();
+  if (!start) return null;
+
+  let parent: HTMLElement | null = start;
+  let composerCandidate: HTMLElement | null = null;
+  while (parent) {
+    const attr = `${parent.getAttribute('data-type') || ''} ${parent.getAttribute('data-testid') || ''} ${parent.className || ''}`.toLowerCase();
+    if (parent.tagName === 'FORM') {
+      return parent;
+    }
+    if (!composerCandidate && attr.includes('composer')) {
+      composerCandidate = parent;
+    }
+    parent = parent.parentElement;
+  }
+
+  return composerCandidate || start;
+}
+
 /** Drop a File into a zone using synthetic DragEvent sequence */
 async function dropFileIntoZone(zone: HTMLElement, file: File): Promise<boolean> {
   try {
@@ -928,17 +1093,61 @@ async function dropFileIntoZone(zone: HTMLElement, file: File): Promise<boolean>
   }
 }
 
-function countAttachmentIndicators(): number {
-  return document.querySelectorAll(
-    '[class*="attachment"], [class*="file-preview"], [class*="uploaded"], [data-testid*="attachment"], [class*="Attachment"], [class*="FilePreview"], [data-testid*="file"], [aria-label*="image"], [aria-label*="Image"]'
-  ).length;
+function countAttachmentIndicators(root: ParentNode = document): number {
+  const selectors = [
+    '[data-testid*="attachment" i]',
+    '[data-testid*="file" i]',
+    '[data-testid*="preview" i]',
+    '[class*="attachment" i]',
+    '[class*="file-preview" i]',
+    '[class*="filepreview" i]',
+    '[class*="uploaded" i]',
+    '[class*="thumbnail" i]',
+    'button[aria-label*="Remove" i]',
+    'img[src^="blob:"]',
+    'img[src^="data:image"]',
+  ];
+  const seen = new Set<Element>();
+
+  for (const selector of selectors) {
+    for (const el of Array.from(root.querySelectorAll(selector))) {
+      const htmlEl = el as HTMLElement;
+      const rect = htmlEl.getBoundingClientRect();
+      if (htmlEl.offsetParent !== null && rect.width > 12 && rect.height > 12) {
+        seen.add(el);
+      }
+    }
+  }
+
+  return seen.size;
 }
 
 /** Wait for attachment indicator in DOM */
-async function waitForAttachmentIndicator(timeoutMs: number, beforeCount = 0): Promise<boolean> {
+async function waitForAttachmentIndicator(timeoutMs: number, beforeCount = 0, expectedIncrease = 1, root: ParentNode = document): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (countAttachmentIndicators() > beforeCount) return true;
+    const currentCount = countAttachmentIndicators(root);
+    if (currentCount >= beforeCount + expectedIncrease) return true;
+    await sleep(500);
+  }
+  return false;
+}
+
+async function waitForAttachmentConfirmation(
+  timeoutMs: number,
+  beforeRootCount = 0,
+  beforeDocumentCount = 0,
+  expectedIncrease = 1,
+  root: ParentNode = document,
+): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const rootCount = countAttachmentIndicators(root);
+    const documentCount = countAttachmentIndicators(document);
+    if (rootCount >= beforeRootCount + expectedIncrease || documentCount >= beforeDocumentCount + expectedIncrease) {
+      console.log(`[PromptBoard] Attachment confirmed (composer +${Math.max(0, rootCount - beforeRootCount)}, document +${Math.max(0, documentCount - beforeDocumentCount)})`);
+      return true;
+    }
     await sleep(500);
   }
   return false;

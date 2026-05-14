@@ -13,7 +13,7 @@ interface ProjectHeaderProps {
 
 const copy = {
   en: {
-    subtitle: 'script to timestamped visual slides',
+    subtitle: 'Turn podcasts into visual stories',
     prompt: 'Prompt',
     guide: 'Guide',
     settings: 'Settings',
@@ -21,7 +21,7 @@ const copy = {
     languageLabel: 'UI language',
   },
   vi: {
-    subtitle: 'script thành slide hình ảnh có timestamp',
+    subtitle: 'Turn podcasts into visual stories',
     prompt: 'Prompt',
     guide: 'Guide',
     settings: 'Cài đặt',
@@ -48,16 +48,22 @@ export function ProjectHeader({
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         <span className="text-xs text-secondary">{analysisLabel}</span>
-        <label className="sr-only" htmlFor="ui-language">{t.languageLabel}</label>
-        <select
-          id="ui-language"
-          value={language}
-          onChange={(event) => onLanguageChange(event.target.value as UiLanguage)}
-          className="rounded-btn border border-border bg-card px-2 py-1 text-xs text-primary hover:border-accent/60"
-        >
-          <option value="en">EN</option>
-          <option value="vi">VIE</option>
-        </select>
+        <div className="rounded-btn border border-border bg-card p-0.5" aria-label={t.languageLabel}>
+          <button
+            type="button"
+            onClick={() => onLanguageChange('en')}
+            className={`rounded-[8px] px-2 py-0.5 text-xs font-bold ${language === 'en' ? 'bg-accent text-black' : 'text-secondary hover:text-primary'}`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => onLanguageChange('vi')}
+            className={`rounded-[8px] px-2 py-0.5 text-xs font-bold ${language === 'vi' ? 'bg-accent text-black' : 'text-secondary hover:text-primary'}`}
+          >
+            VIE
+          </button>
+        </div>
         <button onClick={onTogglePromptAssistant} className="px-2 py-1 rounded-btn bg-card border border-border text-xs hover:border-accent/60">{t.prompt}</button>
         <button onClick={onToggleGuide} className="px-2 py-1 rounded-btn bg-card border border-border text-xs hover:border-accent/60">{t.guide}</button>
         <button onClick={onToggleSettings} className="px-2 py-1 rounded-btn bg-card border border-border text-xs hover:border-accent/60">{t.settings}</button>

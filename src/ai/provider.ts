@@ -50,6 +50,13 @@ export interface ImageGenerationResult {
   imageUrls?: string[];
 }
 
+export interface ImageProviderEnvironmentCheck {
+  ok: boolean;
+  detectedLocale?: string;
+  reason?: 'chatgpt-vietnamese-locale' | 'unknown';
+  message?: string;
+}
+
 export interface DeckTemplateImageResult {
   prompt: string;
   imageUrl: string;
@@ -58,6 +65,7 @@ export interface DeckTemplateImageResult {
 export interface ImageProvider {
   name: string;
   startBatch(): void;
+  checkEnvironment?(options?: { refreshChatGpt?: boolean }): Promise<ImageProviderEnvironmentCheck>;
   generateDeckTemplateImageUrl(prompt: string, referenceImages?: string[]): Promise<DeckTemplateImageResult>;
   generateDeckTemplate(prompt: string, referenceImages?: string[]): Promise<PodcastDeckTemplateAsset>;
   generateOpeningStill(

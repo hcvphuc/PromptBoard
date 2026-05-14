@@ -9,6 +9,7 @@ interface GuideCopy {
   eyebrow: string;
   title: string;
   subtitle: string;
+  author: string;
   close: string;
   start: string;
   tabs: {
@@ -38,7 +39,8 @@ const copy: Record<UiLanguage, GuideCopy> = {
   en: {
     eyebrow: 'User Guide',
     title: 'PodcastBoard operating manual',
-    subtitle: 'A compact guide for turning a podcast script into a styled slide deck.',
+    subtitle: 'Turn podcasts into visual stories.',
+    author: 'Author:',
     close: 'Close',
     start: 'Go to Input',
     tabs: {
@@ -50,10 +52,11 @@ const copy: Record<UiLanguage, GuideCopy> = {
     quickSubtitle: 'The shortest path for a new user. Follow these steps in order.',
     quickSteps: [
       ['Script', 'Paste the podcast dialogue. Script is the only required text input.'],
-      ['Characters', 'Upload Character 1 and Character 2 images. These are required for the opening still frame.'],
+      ['Characters', 'Optionally upload one or two character images. If no character image is provided, the opening still frame is skipped.'],
       ['Style', 'Choose a slide template, aspect ratio, and slide language. Add a template reference if you want tighter style matching.'],
+      ['Location', 'Optionally add a location image or text description. If both are empty, confirm that PodcastBoard should create a random credible podcast setting.'],
       ['Analyze', 'Run Analyze Podcast. With audio, timing uses the transcript. Without audio, timing is estimated.'],
-      ['Generate', 'Generate deck template, opening still frame, then content slides.'],
+      ['Generate', 'Generate deck template, optional opening still frame, then content slides.'],
       ['Export', 'Download timestamps JSON, transcript SRT if audio exists, or the full slides ZIP.'],
     ],
     workflowTitle: 'Full user guide',
@@ -61,14 +64,14 @@ const copy: Record<UiLanguage, GuideCopy> = {
     workflowNodes: [
       ['1. Enter podcast script', 'Paste the full podcast dialogue into Podcast script. Script is required. You can create slides from script only, or from script plus audio.'],
       ['2. Add voice-over if you need exact sync', 'Voice-over is optional. Upload MP3 or WAV when you want transcript-based timing. If no audio is uploaded, PodcastBoard will create estimated timestamps automatically.'],
-      ['3. Add character images', 'Upload Character 1 and Character 2. These two images are required because the opening still frame uses the real appearance of both speakers. Add each character name in the name field below the image.'],
-      ['4. Add location image if available', 'Location image is optional. Use it when you want the opening podcast still frame to match a real studio, room, office, or background mood.'],
+      ['3. Add character images', 'Character images are optional. Upload one image for a solo podcast still frame, or two images for a two-speaker still frame. If no character image is uploaded, PodcastBoard skips the still frame and generates content slides directly.'],
+      ['4. Add location if available', 'Location is optional. Upload a location image or write a short location description when you want the opening podcast still frame to match a specific studio, room, office, or mood. If both are empty, PodcastBoard asks for confirmation before using a random credible podcast location.'],
       ['5. Add template reference if needed', 'Template reference is optional. Use it when you want the generated deck to follow a specific visual direction from your own image, sample slide, or brand reference.'],
       ['6. Choose slide template', 'Pick a preset visual system such as Business Premium, Sticker Social Kit, Notebook Scrapbook, and more. The selected template controls layout language, colors, typography direction, and slide mood.'],
-      ['7. Choose ratio and slide language', 'Select the output ratio: 16:9, 9:16, or 1:1. Select ENG Slide or VIE Slide to control the language used inside generated slide prompts.'],
-      ['8. Analyze podcast', 'Click Analyze Podcast. The extension analyzes sections, key ideas, slide titles, timing, and visual direction. If audio exists, it transcribes with Groq Whisper before analysis.'],
+      ['7. Choose ratio and slide language', 'Select the output ratio: 16:9, 9:16, or 1:1. Use the ENG Slide / VIE Slide switch to control the language used inside generated slide prompts.'],
+      ['8. Analyze podcast', 'Click Analyze Podcast. The extension analyzes sections, key ideas, slide titles, timing, and visual direction. If audio exists, it transcribes with Groq Whisper before analysis. If location is empty, confirm the random podcast location prompt.'],
       ['9. Review analysis result', 'Open the Analysis tab to check section titles, summaries, keywords, notes, infographic ideas, and image ideas before generating images.'],
-      ['10. Generate slides', 'Open the Slides tab and click Generate Slides. The generation order is Deck Template, then Opening Still Frame, then Slide 1, Slide 2, and the rest of the content slides.'],
+      ['10. Generate slides', 'Open the Slides tab and click Generate Slides. The generation order is Deck Template, optional Opening Still Frame when character images exist, then Slide 1, Slide 2, and the rest of the content slides.'],
       ['11. Use Prompt Assistant for custom rules', 'Use Prompt Assistant when you want to change output behavior without editing code. You can request rules such as less polished layout, fewer text overlays, rougher editorial collage, stronger brand colors, or more realistic photo direction. Preview the rule before applying it.'],
       ['12. Export final assets', 'Open Export to download Timestamps JSON, Transcript SRT if audio was used, or Slides ZIP containing generated images and metadata.'],
     ],
@@ -77,8 +80,9 @@ const copy: Record<UiLanguage, GuideCopy> = {
     tips: [
       ['Keep the script clean', 'Use speaker names and remove unrelated notes before analyzing.'],
       ['Use audio only when needed', 'Audio is optional. Add it when exact slide timing matters.'],
-      ['Name both characters', 'Character names help the opening frame display only the names, not fake podcast title text.'],
-      ['Anchor the style', 'Use Slide Template for the base system and Template Reference when you want a specific visual direction.'],
+      ['Name characters when available', 'Character names help the opening frame display only the names, not fake podcast title text.'],
+      ['Anchor the style', 'Use Slide Template for the base system and Template Reference when you want a specific visual direction. Custom Reference is separated at the bottom of the template popup because it behaves like a user-provided style source.'],
+      ['Set providers first', 'Open Settings as a popup, enter provider keys, then confirm. PodcastBoard checks the API before applying the settings.'],
       ['Use Prompt Assistant', 'Add custom rules when you want rougher layouts, less polish, different typography, or fewer text overlays.'],
       ['Cancel before editing', 'If analysis is running and you want to change inputs, cancel first, edit, then analyze again.'],
     ],
@@ -86,7 +90,8 @@ const copy: Record<UiLanguage, GuideCopy> = {
   vi: {
     eyebrow: 'Hướng Dẫn',
     title: 'Sổ tay sử dụng PodcastBoard',
-    subtitle: 'Hướng dẫn gọn để biến script podcast thành bộ slide có style.',
+    subtitle: 'Turn podcasts into visual stories.',
+    author: 'Author:',
     close: 'Đóng',
     start: 'Về Input',
     tabs: {
@@ -98,10 +103,11 @@ const copy: Record<UiLanguage, GuideCopy> = {
     quickSubtitle: 'Đường ngắn nhất cho user mới. Làm lần lượt các bước này.',
     quickSteps: [
       ['Script', 'Dán đoạn thoại podcast. Script là phần text bắt buộc duy nhất.'],
-      ['Nhân vật', 'Upload ảnh Character 1 và Character 2. Hai ảnh này bắt buộc để tạo opening still frame.'],
+      ['Nhân vật', 'Tùy chọn upload 1 hoặc 2 ảnh nhân vật. Nếu không có ảnh nhân vật, extension sẽ bỏ qua opening still frame.'],
       ['Style', 'Chọn slide template, tỉ lệ và ngôn ngữ slide. Thêm template reference nếu muốn bám style chặt hơn.'],
+      ['Location', 'Có thể thêm location image hoặc mô tả location. Nếu bỏ trống cả hai, xác nhận để PodcastBoard tự tạo một podcast setting hợp lý.'],
       ['Analyze', 'Bấm Analyze Podcast. Có audio thì timing theo transcript. Không có audio thì timing được ước lượng.'],
-      ['Generate', 'Tạo deck template, opening still frame, sau đó tạo các content slides.'],
+      ['Generate', 'Tạo deck template, opening still frame nếu có ảnh nhân vật, sau đó tạo content slides.'],
       ['Export', 'Tải timestamps JSON, transcript SRT nếu có audio, hoặc full slides ZIP.'],
     ],
     workflowTitle: 'Hướng dẫn sử dụng đầy đủ',
@@ -109,14 +115,14 @@ const copy: Record<UiLanguage, GuideCopy> = {
     workflowNodes: [
       ['1. Nhập nội dung podcast', 'Dán toàn bộ đoạn thoại vào Podcast script. Script là bắt buộc. Có thể tạo slide từ script-only hoặc từ script + audio.'],
       ['2. Thêm voice-over nếu cần sync chính xác', 'Voice-over là tùy chọn. Upload MP3 hoặc WAV khi muốn timing bám theo transcript. Nếu không có audio, PodcastBoard sẽ tự tạo timestamp ước lượng.'],
-      ['3. Thêm ảnh nhân vật', 'Upload Character 1 và Character 2. Hai ảnh này bắt buộc vì opening still frame sẽ dùng diện mạo thật của hai speaker. Nhập tên từng nhân vật ở ô bên dưới ảnh.'],
-      ['4. Thêm location image nếu có', 'Location image là tùy chọn. Dùng khi muốn opening podcast still frame bám theo studio, phòng, văn phòng hoặc mood background cụ thể.'],
+      ['3. Thêm ảnh nhân vật', 'Ảnh nhân vật là tùy chọn. Upload 1 ảnh cho podcast 1 người, hoặc 2 ảnh cho podcast 2 người. Nếu không có ảnh nhân vật, PodcastBoard sẽ bỏ qua still frame và tạo content slides trực tiếp.'],
+      ['4. Thêm location nếu có', 'Location là tùy chọn. Upload location image hoặc viết mô tả ngắn khi muốn opening podcast still frame bám theo studio, phòng, văn phòng hoặc mood cụ thể. Nếu bỏ trống cả hai, PodcastBoard sẽ hỏi xác nhận trước khi dùng location podcast ngẫu nhiên hợp lý.'],
       ['5. Thêm template reference nếu cần', 'Template reference là tùy chọn. Dùng khi muốn deck được tạo theo một hướng visual cụ thể từ ảnh mẫu, slide mẫu hoặc brand reference của bạn.'],
       ['6. Chọn slide template', 'Chọn một hệ visual preset như Business Premium, Sticker Social Kit, Notebook Scrapbook, và nhiều style khác. Template quyết định ngôn ngữ bố cục, màu, hướng typography và mood slide.'],
-      ['7. Chọn tỉ lệ và ngôn ngữ slide', 'Chọn tỉ lệ đầu ra: 16:9, 9:16 hoặc 1:1. Chọn ENG Slide hoặc VIE Slide để điều khiển ngôn ngữ dùng trong prompt tạo slide.'],
-      ['8. Analyze podcast', 'Bấm Analyze Podcast. Extension sẽ phân tích section, ý chính, title slide, timing và hướng visual. Nếu có audio, hệ thống sẽ transcribe bằng Groq Whisper trước khi analyze.'],
+      ['7. Chọn tỉ lệ và ngôn ngữ slide', 'Chọn tỉ lệ đầu ra: 16:9, 9:16 hoặc 1:1. Dùng switch ENG Slide / VIE Slide để điều khiển ngôn ngữ dùng trong prompt tạo slide.'],
+      ['8. Analyze podcast', 'Bấm Analyze Podcast. Extension sẽ phân tích section, ý chính, title slide, timing và hướng visual. Nếu có audio, hệ thống sẽ transcribe bằng Groq Whisper trước khi analyze. Nếu location trống, xác nhận để dùng location ngẫu nhiên.'],
       ['9. Review kết quả analysis', 'Mở tab Analysis để kiểm tra section title, summary, keywords, note, infographic idea và image idea trước khi generate ảnh.'],
-      ['10. Generate slides', 'Mở tab Slides và bấm Generate Slides. Thứ tự tạo là Deck Template, sau đó Opening Still Frame, rồi Slide 1, Slide 2 và các content slides tiếp theo.'],
+      ['10. Generate slides', 'Mở tab Slides và bấm Generate Slides. Thứ tự tạo là Deck Template, Opening Still Frame nếu có ảnh nhân vật, rồi Slide 1, Slide 2 và các content slides tiếp theo.'],
       ['11. Dùng Prompt Assistant để tùy chỉnh rule', 'Dùng Prompt Assistant khi muốn đổi behavior output mà không sửa code. Có thể yêu cầu layout bớt chỉnh chu, ít text overlay hơn, editorial collage thô hơn, màu brand mạnh hơn hoặc ảnh thật hơn. Preview rule trước khi apply.'],
       ['12. Export final assets', 'Mở Export để tải Timestamps JSON, Transcript SRT nếu có dùng audio, hoặc Slides ZIP chứa ảnh đã tạo và metadata.'],
     ],
@@ -125,8 +131,9 @@ const copy: Record<UiLanguage, GuideCopy> = {
     tips: [
       ['Script sạch', 'Dùng tên speaker rõ ràng và bỏ note không liên quan trước khi analyze.'],
       ['Audio chỉ khi cần', 'Audio là optional. Chỉ thêm khi cần sync timing chính xác.'],
-      ['Đặt tên nhân vật', 'Tên nhân vật giúp opening frame chỉ hiện tên, không sinh text tiêu đề podcast giả.'],
-      ['Khóa style', 'Dùng Slide Template cho style nền và Template Reference khi muốn đi theo visual cụ thể.'],
+      ['Đặt tên nhân vật nếu có', 'Tên nhân vật giúp opening frame chỉ hiện tên, không sinh text tiêu đề podcast giả.'],
+      ['Khóa style', 'Dùng Slide Template cho style nền và Template Reference khi muốn đi theo visual cụ thể. Custom Reference được tách xuống cuối popup template vì nó hoạt động như style source do user cung cấp.'],
+      ['Cài provider trước', 'Mở Settings dạng popup, nhập provider keys rồi confirm. PodcastBoard sẽ check API trước khi áp dụng settings.'],
       ['Dùng Prompt Assistant', 'Thêm custom rules khi muốn layout thô hơn, bớt chỉnh chu, đổi typography hoặc giảm text overlay.'],
       ['Cancel trước khi sửa', 'Nếu đang analyze mà muốn sửa input, bấm cancel trước rồi analyze lại.'],
     ],
@@ -153,6 +160,9 @@ export function GuideDrawer({ open, language, onClose, onStart }: GuideDrawerPro
               <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-accent">{t.eyebrow}</div>
               <h2 className="mt-2 text-xl font-black tracking-tight text-primary">{t.title}</h2>
               <p className="mt-1 max-w-[520px] text-xs leading-5 text-secondary">{t.subtitle}</p>
+              <div className="mt-2 text-xs text-secondary">
+                {t.author} <a href="https://t.me/modos_space" target="_blank" rel="noreferrer" className="font-bold text-accent hover:text-primary">Modos.space</a>
+              </div>
             </div>
             <button type="button" onClick={onClose} className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:border-accent/70">
               {t.close}

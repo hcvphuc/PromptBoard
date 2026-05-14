@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PodcastBoard",
-  "version": "0.1.0",
-  "description": "Turn podcast scripts and voice-over audio into timestamped presentation slide images.",
+  "name": "PodcastBoard 0.2.0",
+  "version": "0.2.0",
+  "description": "Turn podcasts into visual stories.",
   "permissions": ["storage", "sidePanel", "clipboardWrite", "activeTab", "scripting", "downloads"],
   "host_permissions": [
     "https://openrouter.ai/*",
@@ -14,7 +14,12 @@
     "https://chatgpt.com/*"
   ],
   "action": {
-    "default_title": "Open PodcastBoard"
+    "default_title": "Open PodcastBoard 0.2.0",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js",

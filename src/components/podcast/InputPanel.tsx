@@ -19,6 +19,7 @@ interface InputPanelProps {
   onCharacterTwoClear: () => Promise<void>;
   onLocationUpload: (file: File) => Promise<void>;
   onLocationClear: () => Promise<void>;
+  onLocationDescriptionChange: (description: string) => Promise<void>;
   onAnalyze: () => Promise<void>;
   running: boolean;
   language: UiLanguage;
@@ -31,7 +32,6 @@ interface UploadTileProps {
   required?: boolean;
   previewUrl?: string;
   fileName?: string;
-  icon: string;
   compact?: boolean;
   onUpload: (file: File) => Promise<void>;
   onClear?: () => Promise<void>;
@@ -45,23 +45,32 @@ const inputCopy = {
     clickOrDrop: 'Click or drop',
     clear: 'Clear',
     characterImages: 'Character images',
-    characterDetail: 'Drop images here or upload each speaker.',
+    characterDetail: 'Optional: upload one speaker or two speakers for an opening still frame.',
     character1: 'Character 1',
     character2: 'Character 2',
     required: 'Required',
+    optional: 'Optional',
     name1: 'Name 1',
     name2: 'Name 2',
     chooseTemplate: 'Choose slide template',
     templateIntro: 'Pick a visual system. The full template gallery stays here so Input remains clean.',
     close: 'Close',
-    heroSubtitle: 'Turn a two-speaker podcast script and optional voice-over into timestamped visual slides.',
+    heroSubtitle: 'Turn podcasts into visual stories.',
     podcastScript: 'Podcast script',
     voiceOver: 'Voice-over',
     voiceOverDetail: 'Optional MP3/WAV for exact sync',
     templateRef: 'Template ref',
     templateRefDetail: 'Optional visual style reference',
+    location: 'Location',
     locationImage: 'Location image',
-    locationDetail: 'Optional studio/location reference',
+    locationDetail: 'Optional: upload a location image or describe the podcast setting.',
+    locationImageDetail: 'Optional studio/location reference',
+    locationText: 'Location description',
+    locationTextPlaceholder: 'Warm podcast studio, wood table, two microphones, city window at night...',
+    locationWarning: 'No location image or text. PodcastBoard will prompt a random credible podcast location.',
+    locationConfirmTitle: 'Location missing',
+    locationConfirmCancel: 'Cancel',
+    locationConfirmContinue: 'Continue',
     slideTemplate: 'Slide template',
     change: 'Change',
     clickStyle: 'Click to choose style',
@@ -75,23 +84,32 @@ const inputCopy = {
     clickOrDrop: 'Click hoặc thả file',
     clear: 'Bỏ chọn',
     characterImages: 'Ảnh nhân vật',
-    characterDetail: 'Thả ảnh vào đây hoặc upload từng speaker.',
+    characterDetail: 'Tùy chọn: upload 1 speaker hoặc 2 speaker để tạo opening still frame.',
     character1: 'Nhân vật 1',
     character2: 'Nhân vật 2',
     required: 'Bắt buộc',
+    optional: 'Tùy chọn',
     name1: 'Tên 1',
     name2: 'Tên 2',
     chooseTemplate: 'Chọn slide template',
     templateIntro: 'Chọn hệ visual. Gallery template nằm ở đây để Input gọn hơn.',
     close: 'Đóng',
-    heroSubtitle: 'Biến script podcast hai người và voice-over tùy chọn thành slide hình ảnh có timestamp.',
+    heroSubtitle: 'Turn podcasts into visual stories.',
     podcastScript: 'Script podcast',
     voiceOver: 'Voice-over',
     voiceOverDetail: 'MP3/WAV tùy chọn để sync chính xác',
     templateRef: 'Template ref',
     templateRefDetail: 'Ảnh reference style tùy chọn',
+    location: 'Location',
     locationImage: 'Location image',
-    locationDetail: 'Ảnh studio/location tùy chọn',
+    locationDetail: 'Tùy chọn: upload ảnh location hoặc mô tả bối cảnh podcast.',
+    locationImageDetail: 'Ảnh studio/location tùy chọn',
+    locationText: 'Mô tả location',
+    locationTextPlaceholder: 'Studio podcast ấm, bàn gỗ, hai microphone, cửa sổ nhìn ra thành phố ban đêm...',
+    locationWarning: 'Chưa có location image hoặc mô tả. PodcastBoard sẽ prompt ngẫu nhiên một podcast location hợp lý.',
+    locationConfirmTitle: 'Thiếu location',
+    locationConfirmCancel: 'Hủy',
+    locationConfirmContinue: 'Tiếp tục',
     slideTemplate: 'Slide template',
     change: 'Đổi',
     clickStyle: 'Click để chọn style',
@@ -101,7 +119,7 @@ const inputCopy = {
   },
 } satisfies Record<UiLanguage, Record<string, string>>;
 
-function UploadTile({ title, detail, accept, required, previewUrl, fileName, icon, compact, onUpload, onClear, language }: UploadTileProps) {
+function UploadTile({ title, detail, accept, required, previewUrl, fileName, compact, onUpload, onClear, language }: UploadTileProps) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = React.useState(false);
   const t = inputCopy[language];
@@ -161,7 +179,6 @@ function UploadTile({ title, detail, accept, required, previewUrl, fileName, ico
             </div>
             <div className="mt-1 line-clamp-2 text-[11px] text-secondary">{fileName || detail}</div>
           </div>
-          <div className="text-xs font-bold opacity-80">{icon}</div>
         </div>
         <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">{fileName ? t.uploaded : compact ? t.drop : t.clickOrDrop}</div>
       </div>
@@ -225,21 +242,18 @@ function CharacterTile({
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
-          <div className="text-xs font-semibold">{t.characterImages} <span className="text-danger">*</span></div>
+          <div className="text-xs font-semibold">{t.characterImages}</div>
           <div className="text-[11px] text-secondary">{t.characterDetail}</div>
         </div>
-        <div className="text-xs font-bold opacity-80">2P</div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-2">
           <UploadTile
             title={t.character1}
-            detail={t.required}
+            detail={t.optional}
             accept="image/*"
-            required
             previewUrl={characterOne?.dataUrl}
             fileName={characterOne?.fileName}
-            icon="1"
             compact
             onUpload={onCharacterOneUpload}
             onClear={onCharacterOneClear}
@@ -255,12 +269,10 @@ function CharacterTile({
         <div className="space-y-2">
           <UploadTile
             title={t.character2}
-            detail={t.required}
+            detail={t.optional}
             accept="image/*"
-            required
             previewUrl={characterTwo?.dataUrl}
             fileName={characterTwo?.fileName}
-            icon="2"
             compact
             onUpload={onCharacterTwoUpload}
             onClear={onCharacterTwoClear}
@@ -274,6 +286,102 @@ function CharacterTile({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+interface LocationTileProps {
+  locationReference?: { fileName: string; dataUrl: string };
+  locationDescription?: string;
+  onLocationUpload: (file: File) => Promise<void>;
+  onLocationClear: () => Promise<void>;
+  onLocationDescriptionChange: (description: string) => Promise<void>;
+  language: UiLanguage;
+}
+
+function LocationTile({
+  locationReference,
+  locationDescription,
+  onLocationUpload,
+  onLocationClear,
+  onLocationDescriptionChange,
+  language,
+}: LocationTileProps) {
+  const t = inputCopy[language];
+
+  return (
+    <div className="rounded-[20px] border border-border bg-card p-3">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div>
+          <div className="text-xs font-semibold">{t.location}</div>
+          <div className="text-[11px] text-secondary">{t.locationDetail}</div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <UploadTile
+          title={t.locationImage}
+          detail={t.locationImageDetail}
+          accept="image/*"
+          previewUrl={locationReference?.dataUrl}
+          fileName={locationReference?.fileName}
+          compact
+          onUpload={onLocationUpload}
+          onClear={onLocationClear}
+          language={language}
+        />
+        <input
+          value={locationDescription || ''}
+          onChange={(event) => { void onLocationDescriptionChange(event.target.value); }}
+          placeholder={t.locationTextPlaceholder}
+          className="w-full rounded-[12px] border border-border bg-bg px-2 py-2 text-xs text-primary placeholder:text-secondary focus:border-accent"
+        />
+      </div>
+    </div>
+  );
+}
+
+function LocationConfirmModal({
+  language,
+  onCancel,
+  onContinue,
+}: {
+  language: UiLanguage;
+  onCancel: () => void;
+  onContinue: () => void;
+}) {
+  const t = inputCopy[language];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-5 backdrop-blur-md">
+      <section className="w-full max-w-[340px] rounded-[28px] border border-border bg-panel p-5 shadow-2xl shadow-black/60">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] border border-accent/40 bg-accent/10 text-accent">
+          <svg viewBox="0 0 64 64" className="h-8 w-8" role="img" aria-hidden="true">
+            <path d="M32 8 58 54H6L32 8Z" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
+            <path d="M32 24V38" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+            <circle cx="32" cy="47" r="3.5" fill="currentColor" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <h2 className="text-base font-black tracking-tight text-primary">{t.locationConfirmTitle}</h2>
+          <p className="mt-2 text-xs leading-5 text-secondary">{t.locationWarning}</p>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full border border-border bg-card px-4 py-2 text-xs font-bold text-primary hover:border-danger/70"
+          >
+            {t.locationConfirmCancel}
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-full bg-accent px-4 py-2 text-xs font-black text-black hover:brightness-110"
+          >
+            {t.locationConfirmContinue}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -302,6 +410,8 @@ function TemplatePickerModal({
   language: UiLanguage;
 }) {
   const t = inputCopy[language];
+  const presetTemplates = PODCAST_TEMPLATES.filter((template) => template.value !== 'custom-reference');
+  const customTemplate = PODCAST_TEMPLATES.find((template) => template.value === 'custom-reference');
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
       <section className="max-h-[86vh] w-full max-w-[720px] overflow-hidden rounded-[28px] border border-border bg-bg shadow-2xl shadow-black/60">
@@ -314,7 +424,7 @@ function TemplatePickerModal({
         </header>
         <div className="max-h-[calc(86vh-76px)] overflow-y-auto p-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {PODCAST_TEMPLATES.map((template) => {
+            {presetTemplates.map((template) => {
               const active = selected === template.value;
               return (
                 <button
@@ -333,6 +443,26 @@ function TemplatePickerModal({
               );
             })}
           </div>
+          {customTemplate && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(customTemplate.value);
+                  onClose();
+                }}
+                className={`flex w-full items-center gap-3 rounded-[20px] border bg-card p-3 text-left transition ${selected === customTemplate.value ? 'border-accent shadow-[0_0_0_1px_rgba(248,199,65,0.45)]' : 'border-border hover:border-accent/60'}`}
+              >
+                <div className="w-32 shrink-0">
+                  <TemplateThumbnail template={customTemplate.value} />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-primary">{customTemplate.label}</div>
+                  <div className="mt-1 text-xs leading-5 text-secondary">{customTemplate.description}</div>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>
@@ -355,13 +485,24 @@ export function InputPanel({
   onCharacterTwoClear,
   onLocationUpload,
   onLocationClear,
+  onLocationDescriptionChange,
   onAnalyze,
   running,
   language,
 }: InputPanelProps) {
   const [showTemplatePicker, setShowTemplatePicker] = React.useState(false);
+  const [showLocationConfirm, setShowLocationConfirm] = React.useState(false);
   const currentTemplate = PODCAST_TEMPLATES.find((template) => template.value === project.settings.template) || PODCAST_TEMPLATES[0];
   const t = inputCopy[language];
+  const hasLocationInput = Boolean(project.inputs.locationReference?.dataUrl || project.inputs.locationDescription?.trim());
+
+  const handleAnalyze = React.useCallback(() => {
+    if (!hasLocationInput) {
+      setShowLocationConfirm(true);
+      return;
+    }
+    void onAnalyze();
+  }, [hasLocationInput, onAnalyze]);
 
   return (
     <>
@@ -388,7 +529,6 @@ export function InputPanel({
           fileName={project.inputs.audio
             ? `${project.inputs.audio.name} · ${Math.round(project.inputs.audio.durationSeconds)}s${project.transcript ? ` · ${project.transcript.segments.length} segments` : ''}`
             : undefined}
-          icon="VO"
           onUpload={onAudioUpload}
           onClear={onAudioClear}
           language={language}
@@ -399,7 +539,6 @@ export function InputPanel({
           accept="image/*"
           previewUrl={project.inputs.templateReferenceDataUrl}
           fileName={project.inputs.templateFileName}
-          icon="REF"
           onUpload={onTemplateUpload}
           onClear={onTemplateClear}
           language={language}
@@ -415,15 +554,12 @@ export function InputPanel({
           onCharacterTwoClear={onCharacterTwoClear}
           language={language}
         />
-        <UploadTile
-          title={t.locationImage}
-          detail={t.locationDetail}
-          accept="image/*"
-          previewUrl={project.inputs.locationReference?.dataUrl}
-          fileName={project.inputs.locationReference?.fileName}
-          icon="LOC"
-          onUpload={onLocationUpload}
-          onClear={onLocationClear}
+        <LocationTile
+          locationReference={project.inputs.locationReference}
+          locationDescription={project.inputs.locationDescription}
+          onLocationUpload={onLocationUpload}
+          onLocationClear={onLocationClear}
+          onLocationDescriptionChange={onLocationDescriptionChange}
           language={language}
         />
       </section>
@@ -463,21 +599,29 @@ export function InputPanel({
               <option value="1:1">1:1</option>
             </select>
           </label>
-          <label className="space-y-1 text-xs text-secondary">
+          <div className="space-y-1 text-xs text-secondary">
             {t.slideLanguage}
-            <select
-              value={project.settings.promptLanguage}
-              onChange={(e) => onSettingsChange({ ...project.settings, promptLanguage: e.target.value as PodcastSettings['promptLanguage'] })}
-              className="w-full rounded-btn bg-card border border-border px-2 py-2 text-primary"
-            >
-              <option value="english-prompts">ENG Slide</option>
-              <option value="vietnamese-prompts">VIE Slide</option>
-            </select>
-          </label>
+            <div className="grid grid-cols-2 gap-1 rounded-btn border border-border bg-card p-1">
+              <button
+                type="button"
+                onClick={() => onSettingsChange({ ...project.settings, promptLanguage: 'english-prompts' })}
+                className={`rounded-[10px] px-2 py-1.5 text-xs font-bold ${project.settings.promptLanguage === 'english-prompts' ? 'bg-accent text-black' : 'text-secondary hover:bg-bg hover:text-primary'}`}
+              >
+                ENG Slide
+              </button>
+              <button
+                type="button"
+                onClick={() => onSettingsChange({ ...project.settings, promptLanguage: 'vietnamese-prompts' })}
+                className={`rounded-[10px] px-2 py-1.5 text-xs font-bold ${project.settings.promptLanguage === 'vietnamese-prompts' ? 'bg-accent text-black' : 'text-secondary hover:bg-bg hover:text-primary'}`}
+              >
+                VIE Slide
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <button onClick={() => { void onAnalyze(); }} disabled={running || !project.inputs.script.trim()} className="w-full rounded-full bg-accent text-black font-bold py-3 disabled:bg-card disabled:text-secondary disabled:border disabled:border-border">{t.analyze}</button>
+      <button onClick={handleAnalyze} disabled={running || !project.inputs.script.trim()} className="w-full rounded-full bg-accent text-black font-bold py-3 disabled:bg-card disabled:text-secondary disabled:border disabled:border-border">{t.analyze}</button>
 
       {showTemplatePicker && (
         <TemplatePickerModal
@@ -485,6 +629,17 @@ export function InputPanel({
           onClose={() => setShowTemplatePicker(false)}
           onSelect={(template) => onSettingsChange({ ...project.settings, template })}
           language={language}
+        />
+      )}
+
+      {showLocationConfirm && (
+        <LocationConfirmModal
+          language={language}
+          onCancel={() => setShowLocationConfirm(false)}
+          onContinue={() => {
+            setShowLocationConfirm(false);
+            void onAnalyze();
+          }}
         />
       )}
     </>

@@ -1,7 +1,7 @@
 {
   "name": "podcastboard",
-  "version": "0.1.0",
-  "description": "Turn podcast scripts and voice-over audio into timestamped slide prompts and slide images.",
+  "version": "0.2.0",
+  "description": "Turn podcasts into visual stories.",
   "type": "module",
   "scripts": {
     "dev": "vite",

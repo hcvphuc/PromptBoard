@@ -10,6 +10,17 @@ export interface ChatGPTMessageResult {
   conversationUrl?: string;
 }
 
+export interface ChatGPTLanguageResult {
+  success: boolean;
+  locale?: string;
+  isVietnamese: boolean;
+  error?: string;
+}
+
+export interface ChatGPTLanguageCheckOptions {
+  refreshChatGpt?: boolean;
+}
+
 let chatgptTabId: number | null = null;
 let lastConversationUrl: string | null = null;
 let isNewChatSession: boolean = true; // Start fresh — new chat for first prompt of each batch
@@ -241,6 +252,40 @@ export async function downloadImageAsDataUrl(imageUrl: string): Promise<string |
 export function startNewChatSession(): void {
   isNewChatSession = true;
   lastConversationUrl = null;
+}
+
+async function refreshChatGPTAfterLanguageChange(tabId: number): Promise<void> {
+  const targetUrl = lastConversationUrl || 'https://chatgpt.com/';
+  await chrome.tabs.update(tabId, { active: true, url: targetUrl });
+  await waitForTabLoad(tabId);
+  await sleep(4000); // Let ChatGPT rehydrate after language setting changes.
+}
+
+export async function checkChatGPTLanguage(options: ChatGPTLanguageCheckOptions = {}): Promise<ChatGPTLanguageResult> {
+  try {
+    const tabId = await ensureChatGPTTab();
+    if (options.refreshChatGpt) {
+      await refreshChatGPTAfterLanguageChange(tabId);
+    }
+    await injectContentScript(tabId);
+
+    const response = await sendMessageToTab(tabId, {
+      type: 'CHECK_CHATGPT_LANGUAGE',
+    }, 30000);
+
+    return {
+      success: response?.success ?? false,
+      locale: response?.locale,
+      isVietnamese: Boolean(response?.isVietnamese),
+      error: response?.error,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      isVietnamese: false,
+      error: String(err),
+    };
+  }
 }
 
 /** Extract shots from a multi-panel storyboard image via ChatGPT.

@@ -102,6 +102,12 @@ textarea:focus, input:focus, select:focus {
   overflow: visible;
 }
 
+.fail-check {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .done-check-ring,
 .done-check-mark {
   fill: none;
@@ -123,6 +129,33 @@ textarea:focus, input:focus, select:focus {
   stroke-dasharray: 110;
   stroke-dashoffset: 110;
   animation: done-check-draw 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
+}
+
+.fail-check-ring,
+.fail-check-mark {
+  fill: none;
+  stroke: #FF6B6B;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 14px rgba(255, 107, 107, 0.28));
+}
+
+.fail-check-ring {
+  stroke-width: 8;
+  stroke-dasharray: 365;
+  stroke-dashoffset: 365;
+  animation: done-ring-draw 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fail-check-mark {
+  stroke-width: 11;
+  stroke-dasharray: 72;
+  stroke-dashoffset: 72;
+  animation: done-check-draw 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fail-check-b {
+  animation-delay: 0.22s;
 }
 
 @keyframes analyze-spin {

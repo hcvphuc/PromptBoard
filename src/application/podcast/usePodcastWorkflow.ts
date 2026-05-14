@@ -1,6 +1,6 @@
 import React from 'react';
 import { DEFAULT_PROVIDER_SELECTION } from '@/ai/provider';
-import type { ProviderSelection } from '@/ai/provider';
+import type { ImageProvider, ImageProviderEnvironmentCheck, ProviderSelection } from '@/ai/provider';
 import { createAnalysisProvider, createImageProvider, createTranscriptionProvider } from '@/application/providers/factories';
 import { buildTimestampRows, exportPodcastZip, exportTimestampsJson, exportTranscriptSrt, transcriptSegmentsToSrt } from './export';
 import { getAudioDuration, fileToDataUrl } from './audio';
@@ -8,7 +8,7 @@ import { buildDeckTemplatePrompt } from '@/domain/podcast/style';
 import { estimateScriptOnlyDuration } from '@/domain/podcast/timing';
 import type { PodcastProgress } from '@/domain/podcast/pipeline';
 import { runPodcastPipeline } from '@/domain/podcast/pipeline';
-import type { PodcastProject, PodcastPromptRule, PodcastSettings, PodcastSlideImage } from '@/domain/podcast/model';
+import type { PodcastProject, PodcastPromptRule, PodcastSection, PodcastSettings, PodcastSlideImage, PodcastSlidePrompt } from '@/domain/podcast/model';
 import { createEmptyPodcastProject } from '@/domain/podcast/model';
 import { extensionStorage } from '@/storage/extensionStorage';
 import { appendPromptRules, buildPromptRule, createPromptRuleDraft, type PromptRuleDraft } from './promptRules';
@@ -34,20 +34,29 @@ function clearGeneratedAssets(draft: PodcastProject): void {
 
 function buildOpeningStillPrompt(project: PodcastProject): string {
   const title = project.analysis?.title || 'Podcast Opening';
-  const locationInstruction = project.inputs.locationReference
-    ? 'Use the attached location reference as the podcast studio/environment anchor.'
-    : 'Create a credible real podcast recording room with practical room lighting, microphones, cables, table details, and natural background texture.';
+  const locationDescription = project.inputs.locationDescription?.trim();
+  const locationInstruction = project.inputs.locationReference && locationDescription
+    ? `Use the attached location reference as the podcast studio/environment anchor, and apply this user location description: ${locationDescription}`
+    : project.inputs.locationReference
+      ? 'Use the attached location reference as the podcast studio/environment anchor.'
+      : locationDescription
+        ? `Create the podcast location from this user text description: ${locationDescription}`
+        : 'Create a credible real podcast recording room with practical room lighting, microphones, cables, table details, and natural background texture.';
+  const characters = [project.inputs.characterOne, project.inputs.characterTwo].filter((item) => item?.dataUrl);
+  const speakerInstruction = characters.length > 1
+    ? 'Use the attached character images as speaker references. Preserve each person identity, facial structure, age impression, hair, skin tone, and wardrobe cues as much as possible. Show both people seated across or angled toward each other in a real podcast setup.'
+    : 'Use the attached character image as the solo podcast speaker reference. Preserve the person identity, facial structure, age impression, hair, skin tone, and wardrobe cues as much as possible. Show the person seated in a real solo podcast setup with a microphone, table, and natural recording posture.';
 
-  return `Create a natural, real-photo opening still frame for a two-person podcast episode.
+  return `Create a natural, real-photo opening still frame for a podcast episode.
 
 Episode/deck title: "${title}"
 Aspect ratio: ${project.settings.aspectRatio}
 
-Use the first attached character image as speaker 1 and the second attached character image as speaker 2. Preserve their identity, facial structure, age impression, hair, skin tone, and wardrobe cues as much as possible. Show both people seated across or angled toward each other in a real podcast setup with microphones, table, headphones or studio gear where appropriate.
+${speakerInstruction}
 
 ${locationInstruction}
 
-Camera and composition: medium-wide real camera photo, straight-on stable camera angle, level horizon, no Dutch angle, no tilted framing, both speakers visible, natural eye contact or active conversation posture. Use believable human imperfections: natural skin texture, small facial asymmetry, normal room-light shadows, slight lens softness, realistic fabric folds, subtle table clutter, real microphone hardware.
+Camera and composition: medium-wide real camera photo, straight-on stable camera angle, level horizon, no Dutch angle, no tilted framing, visible speaker faces, natural eye contact or active conversation posture. Use believable human imperfections: natural skin texture, small facial asymmetry, normal room-light shadows, slight lens softness, realistic fabric folds, subtle table clutter, real microphone hardware.
 
 Avoid AI polish: no plastic skin, no beauty retouching, no overly symmetrical faces, no perfect studio render, no glossy poster look, no fantasy lighting, no ultra-clean showroom, no cinematic color grading, no exaggerated depth of field, no text overlays, no logos, no watermarks, no slide UI, no infographic elements.`;
 }
@@ -67,12 +76,33 @@ function withSpeakerNameRule(prompt: string, project: PodcastProject): string {
 SPEAKER NAME RULE:${nameText} If the image includes speaker names, render only the standalone person names. Do not render "Podcast", "show", "episode", "channel", brand text, or phrases like "Nam và Thủy Podcast" after the names.`;
 }
 
+function withNegativePrompt(prompt: string, negativePrompt: string): string {
+  const trimmedNegativePrompt = negativePrompt.trim();
+  if (!trimmedNegativePrompt) return prompt;
+  return `${prompt}
+
+NEGATIVE PROMPT: Avoid ${trimmedNegativePrompt}.`;
+}
+
+function buildSlideGenerationInput(slide: PodcastSlidePrompt, project: PodcastProject) {
+  return {
+    slideNumber: slide.slide_number,
+    sectionTitle: slide.section_title,
+    timestampStart: slide.timestamp_start,
+    timestampEnd: slide.timestamp_end,
+    prompt: appendPromptRules(withSpeakerNameRule(withNegativePrompt(slide.prompt, slide.negative_prompt), project), project.promptRules, 'slides'),
+  };
+}
+
 export function usePodcastWorkflow() {
   const [project, setProject] = React.useState<PodcastProject>(createEmptyPodcastProject(DEFAULT_PROVIDER_SELECTION));
   const [audioFile, setAudioFile] = React.useState<File | null>(null);
   const [running, setRunning] = React.useState(false);
   const [transcribing, setTranscribing] = React.useState(false);
   const [generatingSlides, setGeneratingSlides] = React.useState(false);
+  const [regeneratingSlideNumber, setRegeneratingSlideNumber] = React.useState<number | null>(null);
+  const [regeneratingOpeningStill, setRegeneratingOpeningStill] = React.useState(false);
+  const [chatgptLanguageWarning, setChatgptLanguageWarning] = React.useState<ImageProviderEnvironmentCheck | null>(null);
   const [progress, setProgress] = React.useState<PodcastProgress | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [analyzeCompletedAt, setAnalyzeCompletedAt] = React.useState(0);
@@ -80,6 +110,7 @@ export function usePodcastWorkflow() {
   const generationControlRef = React.useRef<'idle' | 'running' | 'paused' | 'cancelled'>('idle');
   const generationStopResolverRef = React.useRef<(() => void) | null>(null);
   const analyzeRunIdRef = React.useRef(0);
+  const shouldRefreshChatGptBeforeLanguageCheckRef = React.useRef(false);
 
   React.useEffect(() => {
     projectRef.current = project;
@@ -122,6 +153,20 @@ export function usePodcastWorkflow() {
     generationControlRef.current = status;
     generationStopResolverRef.current?.();
     generationStopResolverRef.current = null;
+  }, []);
+
+  const ensureImageProviderReady = React.useCallback(async (imageProvider: ImageProvider): Promise<boolean> => {
+    const check = await imageProvider.checkEnvironment?.({
+      refreshChatGpt: shouldRefreshChatGptBeforeLanguageCheckRef.current,
+    });
+    if (check && !check.ok) {
+      shouldRefreshChatGptBeforeLanguageCheckRef.current = true;
+      setChatgptLanguageWarning(check);
+      return false;
+    }
+    shouldRefreshChatGptBeforeLanguageCheckRef.current = false;
+    setChatgptLanguageWarning(null);
+    return true;
   }, []);
 
   const updateScript = React.useCallback(async (script: string) => {
@@ -305,6 +350,65 @@ export function usePodcastWorkflow() {
     });
   }, [updateProject]);
 
+  const updateLocationDescription = React.useCallback(async (description: string) => {
+    await updateProject((draft) => {
+      draft.inputs.locationDescription = description;
+      clearGeneratedAssets(draft);
+    });
+  }, [updateProject]);
+
+  const updateAnalysisSection = React.useCallback(async (section: PodcastSection) => {
+    await updateProject((draft) => {
+      if (!draft.analysis) return;
+
+      draft.analysis.sections = draft.analysis.sections.map((item) => (
+        item.section_number === section.section_number ? section : item
+      ));
+      draft.analysis.slide_prompts = draft.analysis.slide_prompts.map((slide) => (
+        slide.slide_number === section.section_number
+          ? {
+            ...slide,
+            section_title: section.title,
+            timestamp_start: section.start_time,
+            timestamp_end: section.end_time,
+          }
+          : slide
+      ));
+      clearGeneratedAssets(draft);
+      draft.exports.timestamps = buildTimestampRows(draft);
+    });
+  }, [updateProject]);
+
+  const updateSlidePrompt = React.useCallback(async (slidePrompt: PodcastSlidePrompt) => {
+    await updateProject((draft) => {
+      if (!draft.analysis) return;
+
+      draft.analysis.slide_prompts = draft.analysis.slide_prompts.map((item) => (
+        item.slide_number === slidePrompt.slide_number ? slidePrompt : item
+      ));
+      draft.assets.slides = draft.assets.slides.filter((slide) => slide.slideNumber !== slidePrompt.slide_number);
+      draft.exports.timestamps = buildTimestampRows(draft);
+      draft.generation.status = 'idle';
+      draft.stage = draft.assets.slides.length > 0 ? 'slides-generated' : 'analyzed';
+    });
+  }, [updateProject]);
+
+  const deleteSlideImage = React.useCallback(async (slideNumber: number) => {
+    await updateProject((draft) => {
+      draft.assets.slides = draft.assets.slides.filter((slide) => slide.slideNumber !== slideNumber);
+      draft.generation.status = 'idle';
+      draft.stage = draft.assets.slides.length > 0 ? 'slides-generated' : 'analyzed';
+    });
+  }, [updateProject]);
+
+  const deleteOpeningStill = React.useCallback(async () => {
+    await updateProject((draft) => {
+      draft.assets.openingStill = undefined;
+      draft.generation.status = 'idle';
+      draft.stage = draft.assets.slides.length > 0 ? 'slides-generated' : 'analyzed';
+    });
+  }, [updateProject]);
+
   const analyze = React.useCallback(async () => {
     const currentProject = projectRef.current;
     if (!currentProject.inputs.script.trim()) return;
@@ -393,10 +497,12 @@ export function usePodcastWorkflow() {
   const generateSlides = React.useCallback(async () => {
     const currentProject = projectRef.current;
     if (!currentProject.analysis || generatingSlides) return;
-    if (!currentProject.inputs.characterOne?.dataUrl || !currentProject.inputs.characterTwo?.dataUrl) {
-      setError('Please upload both character images before generating slides.');
-      return;
-    }
+    const characterReferenceImages = [currentProject.inputs.characterOne?.dataUrl, currentProject.inputs.characterTwo?.dataUrl]
+      .filter(Boolean) as string[];
+    const shouldGenerateOpeningStill = characterReferenceImages.length > 0;
+
+    const imageProvider = createImageProvider(currentProject.providers.image);
+    if (!await ensureImageProviderReady(imageProvider)) return;
 
     setGeneratingSlides(true);
     setError(null);
@@ -407,7 +513,6 @@ export function usePodcastWorkflow() {
     }));
 
     try {
-      const imageProvider = createImageProvider(currentProject.providers.image);
       if (!currentProject.assets.deckTemplate && !currentProject.assets.openingStill && currentProject.assets.slides.length === 0) {
         imageProvider.startBatch();
       }
@@ -438,11 +543,10 @@ Use the attached user template/reference as the design source. Create a cleaner 
       if (generationControlRef.current !== 'running') return;
 
       let openingStill = projectRef.current.assets.openingStill;
-      if (!openingStill) {
+      if (shouldGenerateOpeningStill && !openingStill) {
         setProgress({ step: 'slides', label: 'Generating opening still frame...', percentage: 35 });
         const openingRefs = [
-          currentProject.inputs.characterOne.dataUrl,
-          currentProject.inputs.characterTwo.dataUrl,
+          ...characterReferenceImages,
           ...(currentProject.inputs.locationReference ? [currentProject.inputs.locationReference.dataUrl] : []),
         ];
         const generatedOpeningStill = await waitForGenerationStep(imageProvider.generateOpeningStill({
@@ -486,11 +590,7 @@ Use the attached user template/reference as the design source. Create a cleaner 
         });
 
         const generatedSlide = await waitForGenerationStep(imageProvider.generateSlide({
-          slideNumber: slide.slide_number,
-          sectionTitle: slide.section_title,
-          timestampStart: slide.timestamp_start,
-          timestampEnd: slide.timestamp_end,
-          prompt: appendPromptRules(withSpeakerNameRule(slide.prompt, currentProject), currentProject.promptRules, 'slides'),
+          ...buildSlideGenerationInput(slide, currentProject),
         }, {
           deckTemplateImageDataUrl: deckTemplate.imageDataUrl,
           referenceImages: currentProject.inputs.templateReferenceDataUrl && currentProject.settings.template === 'custom-reference'
@@ -501,7 +601,7 @@ Use the attached user template/reference as the design source. Create a cleaner 
 
         const partial = withProjectUpdate(projectRef.current, (draft) => {
           draft.assets.deckTemplate = deckTemplate;
-          draft.assets.openingStill = openingStill;
+          if (openingStill) draft.assets.openingStill = openingStill;
           draft.assets.slides = mergeSlide(draft.assets.slides, generatedSlide);
           draft.stage = draft.assets.slides.length > 0 ? 'slides-generated' : draft.stage;
         });
@@ -530,7 +630,133 @@ Use the attached user template/reference as the design source. Create a cleaner 
       setGeneratingSlides(false);
       setProgress(null);
     }
-  }, [generatingSlides, persistProject, waitForGenerationStep]);
+  }, [ensureImageProviderReady, generatingSlides, persistProject, waitForGenerationStep]);
+
+  const regenerateSlide = React.useCallback(async (slideNumber: number) => {
+    const currentProject = projectRef.current;
+    if (!currentProject.analysis || generatingSlides) return;
+
+    const slidePrompt = currentProject.analysis.slide_prompts.find((slide) => slide.slide_number === slideNumber);
+    const deckTemplate = currentProject.assets.deckTemplate;
+    if (!slidePrompt) {
+      setError(`Slide ${slideNumber} is missing from the analysis.`);
+      return;
+    }
+    if (!deckTemplate) {
+      setError('Generate the deck template before regenerating a single slide.');
+      return;
+    }
+
+    const imageProvider = createImageProvider(currentProject.providers.image);
+    if (!await ensureImageProviderReady(imageProvider)) return;
+
+    setGeneratingSlides(true);
+    setRegeneratingSlideNumber(slideNumber);
+    setError(null);
+    setProgress({ step: 'slides', label: `Regenerating slide ${slideNumber}...`, percentage: 55 });
+    generationControlRef.current = 'running';
+    await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+      draft.generation.status = 'running';
+    }));
+
+    try {
+      const generatedSlide = await waitForGenerationStep(imageProvider.generateSlide(
+        buildSlideGenerationInput(slidePrompt, currentProject),
+        {
+          deckTemplateImageDataUrl: deckTemplate.imageDataUrl,
+          referenceImages: currentProject.inputs.templateReferenceDataUrl && currentProject.settings.template === 'custom-reference'
+            ? [currentProject.inputs.templateReferenceDataUrl]
+            : [],
+        },
+      ));
+      if (!generatedSlide || generationControlRef.current !== 'running') return;
+
+      await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+        draft.assets.slides = mergeSlide(draft.assets.slides, generatedSlide);
+        draft.generation.status = 'done';
+        draft.stage = 'slides-generated';
+      }));
+      generationControlRef.current = 'idle';
+      setProgress({ step: 'done', label: `Slide ${slideNumber} regenerated.`, percentage: 100 });
+    } catch (err: any) {
+      setError(err.message || `Slide ${slideNumber} regeneration failed`);
+      generationControlRef.current = 'idle';
+      await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+        draft.generation.status = 'idle';
+      }));
+    } finally {
+      const status = (generationControlRef as React.MutableRefObject<PodcastProject['generation']['status']>).current;
+      if (status === 'paused' || status === 'cancelled') {
+        await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+          draft.generation.status = status;
+        }));
+      }
+      setGeneratingSlides(false);
+      setRegeneratingSlideNumber(null);
+      setProgress(null);
+    }
+  }, [ensureImageProviderReady, generatingSlides, persistProject, waitForGenerationStep]);
+
+  const regenerateOpeningStill = React.useCallback(async () => {
+    const currentProject = projectRef.current;
+    if (!currentProject.analysis || generatingSlides) return;
+    const characterReferenceImages = [currentProject.inputs.characterOne?.dataUrl, currentProject.inputs.characterTwo?.dataUrl]
+      .filter(Boolean) as string[];
+    if (characterReferenceImages.length === 0) {
+      setError('Upload at least one character image before regenerating the opening still frame.');
+      return;
+    }
+
+    const imageProvider = createImageProvider(currentProject.providers.image);
+    if (!await ensureImageProviderReady(imageProvider)) return;
+
+    setGeneratingSlides(true);
+    setRegeneratingOpeningStill(true);
+    setError(null);
+    setProgress({ step: 'slides', label: 'Regenerating opening still frame...', percentage: 35 });
+    generationControlRef.current = 'running';
+    await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+      draft.generation.status = 'running';
+    }));
+
+    try {
+      const openingRefs = [
+        ...characterReferenceImages,
+        ...(currentProject.inputs.locationReference ? [currentProject.inputs.locationReference.dataUrl] : []),
+      ];
+      const generatedOpeningStill = await waitForGenerationStep(imageProvider.generateOpeningStill({
+        prompt: appendPromptRules(buildOpeningStillPrompt(currentProject), currentProject.promptRules, 'opening_still'),
+      }, {
+        deckTemplateImageDataUrl: undefined,
+        referenceImages: openingRefs,
+      }));
+      if (!generatedOpeningStill || generationControlRef.current !== 'running') return;
+
+      await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+        draft.assets.openingStill = generatedOpeningStill;
+        draft.generation.status = 'done';
+        draft.stage = draft.assets.slides.length > 0 ? 'slides-generated' : 'analyzed';
+      }));
+      generationControlRef.current = 'idle';
+      setProgress({ step: 'done', label: 'Opening still frame regenerated.', percentage: 100 });
+    } catch (err: any) {
+      setError(err.message || 'Opening still frame regeneration failed');
+      generationControlRef.current = 'idle';
+      await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+        draft.generation.status = 'idle';
+      }));
+    } finally {
+      const status = (generationControlRef as React.MutableRefObject<PodcastProject['generation']['status']>).current;
+      if (status === 'paused' || status === 'cancelled') {
+        await persistProject(withProjectUpdate(projectRef.current, (draft) => {
+          draft.generation.status = status;
+        }));
+      }
+      setGeneratingSlides(false);
+      setRegeneratingOpeningStill(false);
+      setProgress(null);
+    }
+  }, [ensureImageProviderReady, generatingSlides, persistProject, waitForGenerationStep]);
 
   const pauseGeneration = React.useCallback(async () => {
     if (!generatingSlides) return;
@@ -560,6 +786,10 @@ Use the attached user template/reference as the design source. Create a cleaner 
     setProgress(null);
     setRunning(false);
     setGeneratingSlides(false);
+    setRegeneratingSlideNumber(null);
+    setRegeneratingOpeningStill(false);
+    setChatgptLanguageWarning(null);
+    shouldRefreshChatGptBeforeLanguageCheckRef.current = false;
     setTranscribing(false);
     generationControlRef.current = 'idle';
     const next = await extensionStorage.resetProject(providers);
@@ -573,10 +803,14 @@ Use the attached user template/reference as the design source. Create a cleaner 
     running,
     transcribing,
     generatingSlides,
+    regeneratingSlideNumber,
+    regeneratingOpeningStill,
+    chatgptLanguageWarning,
     progress,
     error,
     analyzeCompletedAt,
     setError,
+    dismissChatgptLanguageWarning: () => setChatgptLanguageWarning(null),
     updateScript,
     updateSettings,
     updateProviders,
@@ -596,9 +830,16 @@ Use the attached user template/reference as the design source. Create a cleaner 
     clearCharacterTwo,
     uploadLocationReference,
     clearLocationReference,
+    updateLocationDescription,
+    updateAnalysisSection,
+    updateSlidePrompt,
+    deleteSlideImage,
+    deleteOpeningStill,
     analyze,
     cancelAnalyze,
     generateSlides,
+    regenerateSlide,
+    regenerateOpeningStill,
     pauseGeneration,
     resumeGeneration,
     cancelGeneration,

@@ -28,6 +28,11 @@ const uiCopy = {
     analyzingSections: 'Analyzing podcast sections...',
     processing: 'Processing',
     cancel: 'Cancel',
+    chatgptLanguageTitle: 'Switch ChatGPT to English',
+    chatgptLanguageDetail: 'PodcastBoard detected ChatGPT is using Vietnamese. Image generation needs the ChatGPT interface in English so the extension can find the correct controls. After changing it, click Generate again. You do not need to reload the extension or analyze again.',
+    chatgptLanguageSteps: 'Settings -> General -> Language -> English',
+    chatgptLanguageLocale: 'Detected locale',
+    chatgptLanguageButton: 'I will change it',
   },
   vi: {
     backToInput: '← Quay lại Input',
@@ -43,8 +48,56 @@ const uiCopy = {
     analyzingSections: 'Đang analyze podcast sections...',
     processing: 'Đang xử lý',
     cancel: 'Cancel',
+    chatgptLanguageTitle: 'Đổi ChatGPT sang tiếng Anh',
+    chatgptLanguageDetail: 'PodcastBoard phát hiện ChatGPT đang dùng tiếng Việt. Phần tạo ảnh cần giao diện ChatGPT tiếng Anh để extension tìm đúng nút điều khiển. Sau khi đổi xong, bấm Generate lại. Không cần reload extension hoặc analyze lại.',
+    chatgptLanguageSteps: 'Cài đặt -> Chung -> Ngôn ngữ -> chọn Tiếng Anh.',
+    chatgptLanguageLocale: 'Locale phát hiện',
+    chatgptLanguageButton: 'Đã hiểu',
   },
 } satisfies Record<UiLanguage, Record<string, string>>;
+
+function ChatGptLanguageWarningModal({
+  language,
+  detectedLocale,
+  onClose,
+}: {
+  language: UiLanguage;
+  detectedLocale?: string;
+  onClose: () => void;
+}) {
+  const t = uiCopy[language];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-5 backdrop-blur-md">
+      <section className="w-full max-w-[360px] rounded-[28px] border border-border bg-panel p-5 shadow-2xl shadow-black/60">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] border border-accent/40 bg-accent/10 text-accent">
+          <svg viewBox="0 0 64 64" className="h-8 w-8" role="img" aria-hidden="true">
+            <path d="M32 8 58 54H6L32 8Z" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
+            <path d="M32 24V38" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+            <circle cx="32" cy="47" r="3.5" fill="currentColor" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <h2 className="text-base font-black tracking-tight text-primary">{t.chatgptLanguageTitle}</h2>
+          <p className="mt-2 text-xs leading-5 text-secondary">{t.chatgptLanguageDetail}</p>
+          <div className="mt-4 rounded-[16px] border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-bold text-accent">
+            {t.chatgptLanguageSteps}
+          </div>
+          {detectedLocale && (
+            <div className="mt-3 text-[11px] text-secondary">{t.chatgptLanguageLocale}: {detectedLocale}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 w-full rounded-full bg-accent px-4 py-2 text-xs font-black text-black hover:brightness-110"
+        >
+          {t.chatgptLanguageButton}
+        </button>
+      </section>
+    </div>
+  );
+}
 
 export default function App() {
   const [showSettings, setShowSettings] = React.useState(false);
@@ -93,19 +146,19 @@ export default function App() {
         analysisLabel={workflow.project.providers.analysis.kind === 'mock' ? 'Mock' : workflow.project.providers.analysis.kind}
         language={uiLanguage}
         onLanguageChange={updateUiLanguage}
-        onToggleSettings={() => setShowSettings((value) => !value)}
+        onToggleSettings={() => setShowSettings(true)}
         onTogglePromptAssistant={() => setShowPromptAssistant(true)}
         onToggleGuide={() => setShowGuide(true)}
         onReset={() => { void workflow.resetProject(); }}
       />
 
-      {showSettings && (
-        <SettingsPanel
-          providers={workflow.project.providers}
-          onChange={(providers) => { void workflow.updateProviders(providers); }}
-          language={uiLanguage}
-        />
-      )}
+      <SettingsPanel
+        open={showSettings}
+        providers={workflow.project.providers}
+        onChange={(providers) => workflow.updateProviders(providers)}
+        onClose={() => setShowSettings(false)}
+        language={uiLanguage}
+      />
 
       <WorkspaceTabs
         activeTab={activeTab}
@@ -146,6 +199,7 @@ export default function App() {
             onCharacterTwoClear={workflow.clearCharacterTwo}
             onLocationUpload={workflow.uploadLocationReference}
             onLocationClear={workflow.clearLocationReference}
+            onLocationDescriptionChange={workflow.updateLocationDescription}
             onAnalyze={workflow.analyze}
             running={workflow.running}
             language={uiLanguage}
@@ -154,7 +208,14 @@ export default function App() {
 
         {activeTab === 'analysis' && (
           workflow.project.analysis
-            ? <AnalysisPanel project={workflow.project} language={uiLanguage} />
+            ? (
+              <AnalysisPanel
+                project={workflow.project}
+                language={uiLanguage}
+                onGoToSlides={() => setActiveTab('slides')}
+                onUpdateSection={workflow.updateAnalysisSection}
+              />
+            )
             : <EmptyState title={t.noAnalysisTitle} detail={t.noAnalysisDetail} />
         )}
 
@@ -168,6 +229,13 @@ export default function App() {
                 onPause={workflow.pauseGeneration}
                 onResume={workflow.resumeGeneration}
                 onCancel={workflow.cancelGeneration}
+                onUpdateSlidePrompt={workflow.updateSlidePrompt}
+                onDeleteSlideImage={workflow.deleteSlideImage}
+                onRegenerateSlide={workflow.regenerateSlide}
+                onDeleteOpeningStill={workflow.deleteOpeningStill}
+                onRegenerateOpeningStill={workflow.regenerateOpeningStill}
+                regeneratingSlideNumber={workflow.regeneratingSlideNumber}
+                regeneratingOpeningStill={workflow.regeneratingOpeningStill}
                 language={uiLanguage}
               />
             )
@@ -219,6 +287,14 @@ export default function App() {
           setActiveTab('input');
         }}
       />
+
+      {workflow.chatgptLanguageWarning && (
+        <ChatGptLanguageWarningModal
+          language={uiLanguage}
+          detectedLocale={workflow.chatgptLanguageWarning.detectedLocale}
+          onClose={workflow.dismissChatgptLanguageWarning}
+        />
+      )}
     </div>
   );
 }

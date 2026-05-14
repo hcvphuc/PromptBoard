@@ -1,6 +1,7 @@
 import type { ImageProvider } from '@/ai/provider';
 import type { PodcastDeckTemplateAsset, PodcastSlideImage } from '@/domain/podcast/model';
 import {
+  checkChatGPTLanguage,
   downloadImageAsDataUrl,
   generateImage,
   generateImageWithRefs,
@@ -12,6 +13,23 @@ export class ChatGPTImageProvider implements ImageProvider {
 
   startBatch(): void {
     startNewChatSession();
+  }
+
+  async checkEnvironment(options?: { refreshChatGpt?: boolean }) {
+    const language = await checkChatGPTLanguage(options);
+    if (language.success && language.isVietnamese) {
+      return {
+        ok: false,
+        detectedLocale: language.locale,
+        reason: 'chatgpt-vietnamese-locale' as const,
+        message: 'ChatGPT is currently using Vietnamese. Switch ChatGPT language to English before generating images.',
+      };
+    }
+
+    return {
+      ok: true,
+      detectedLocale: language.locale,
+    };
   }
 
   async downloadImageAsDataUrl(imageUrl: string): Promise<string | null> {
